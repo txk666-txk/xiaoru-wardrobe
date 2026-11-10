@@ -7,6 +7,7 @@
 ## 功能
 
 - **数字人客服**：文字与语音对话、播报、口型与动作；商品、尺码、订单、物流和政策工具共用客服入口。
+- **语音与形象联动**：本机麦克风通过 ASR 转成文本，交给同一 Agent 处理；回复经 TTS 合成并播放，同时驱动 Live2D 口型与动作。语音基础能力沿用 Fay，业务工具与穿搭流程在此基础上扩展。
 - **对话式穿搭**：询问场景、预算和偏好，观察用户上传的衣物或穿着照片；支持保留单品、替换一件和降低实际搭配总价。
 - **真实服装试衣**：支持导入已有本机服装目录，并自带开放许可服装照片小样；推荐卡可继续调用 FASHN 试穿，支持上传、结果下载与删除。
 - **电商沙盒**：购物车、500 元演示余额、订单、模拟物流和售后确认，支持大单转人工流程演示。
@@ -17,13 +18,13 @@
 
 ![商城、助手与客服三栏界面](assets/screenshots/storefront.jpg)
 
-商城选衣、助手展示与客服对话共用一个工作台。截图展示默认自制静态头像；Live2D 运行库与角色模型需另行配置。
+商城选衣、Live2D 数字人与客服对话共用一个工作台。截图为作者提供的本机运行界面，包含另行配置的角色和本机服装参考目录；新克隆需自行配置角色资源，默认使用开放许可服装小样与自制头像。
 
-**在对话中调整搭配**
+**照片穿搭入口**
 
-<img src="assets/screenshots/styling-chat.jpg" width="450" alt="用户保留裤子、替换白色长袖后，客服返回总价 198 元的两件搭配与试穿入口">
+![穿搭顾问与照片上传入口](assets/screenshots/styling-chat.jpg)
 
-用户提出“保留裤子、换白色长袖”，客服沿用上下文调用搭配工具，返回两件商品卡与试穿入口；候选商品和 198 元总价由工具校验。
+穿搭顾问支持上传本人穿着照、已有衣服，或不传照片进行文字推荐。数字人客服聊天框也支持图片输入；看图、追问、商品推荐与方案调整共用 Agent 工具。此截图展示上传入口，未展示照片分析结果。
 
 **本地 FASHN 试穿**
 
@@ -31,7 +32,7 @@
 
 使用 FASHN 官方示例人物与开放许可服装，通过本地 GPU 生成并在界面显示试衣结果。结果为模型合成，仅供穿搭参考。
 
-三张截图使用仓库自带的开放许可服装小样。素材出处、署名与许可见[截图素材来源](assets/screenshots/SOURCES.md)。
+前两张为作者提供的本机运行截图；试衣示例使用开放许可服装与 FASHN 官方示例人物。角色模型文件和完整本机图库不随仓库分发，素材出处及说明见[截图素材来源](assets/screenshots/SOURCES.md)。
 
 ## Agent 如何工作
 
@@ -70,6 +71,46 @@ py -3.12 -m venv .venv
 ```
 
 打开 `http://127.0.0.1:5000`。默认 `start_mode=common` 同时打开桌面窗口；只用网页时将 `system.conf` 改为 `start_mode=web`。这是本机工作台，默认仅监听回环地址，尚未提供公网用户账号体系。
+
+### ASR、TTS 与语音使用
+
+语音链路为「本机麦克风 → ASR → Agent / 工具 → 最终回复 → TTS → 播放 / Live2D」。ASR 负责语音识别，TTS 负责语音合成；它们与文本模型、看图模型、试衣模型分别配置。默认模板使用阿里云 ASR / TTS，需要开通相应服务并取得凭据，下载源码不会自动获得服务额度。
+
+**配置默认阿里云方案**
+
+先运行初始化脚本，再在本机 `system.conf` 现有的 `[key]` 节中修改下面这些项，保留文本模型等其他配置，不要另建重复的 `[key]` 节：
+
+```ini
+ASR_mode=ali
+ali_nls_key_id=YOUR_ASR_ACCESS_KEY_ID
+ali_nls_key_secret=YOUR_ASR_ACCESS_KEY_SECRET
+ali_nls_app_key=YOUR_ASR_APP_KEY
+
+tts_module=ali
+ali_tss_key_id=YOUR_TTS_ACCESS_KEY_ID
+ali_tss_key_secret=YOUR_TTS_ACCESS_KEY_SECRET
+ali_tss_app_key=YOUR_TTS_APP_KEY
+```
+
+键名按现有实现保留为 **`ali_tss_*`**。识别与合成使用各自配置项；即使账号相同，也要分别填写对应服务的 AppKey。配置保存在本机，后续启动无需重复粘贴；`system.conf` 已被 Git 忽略。可对照 [配置模板](system.conf.example)，不要把真实密钥写入 README 或提交到 GitHub。
+
+音色位于本机 `config.json` 的 `attribute.voice`，默认阿里云示例为 `zhistella`；切换 TTS 服务时应同时选择该服务支持的音色。初始化来源为 [config.example.json](config.example.json)。修改服务或凭据后重新启动工作台。
+
+**录音与播放**
+
+1. 在运行项目的电脑上打开 `http://127.0.0.1:5000`，选择当前聊天身份，再开启聊天框的麦克风开关。它保存 `source.record.enabled` 并将本机录音关联到当前会话，默认关闭。
+2. 录音使用 PyAudio 和这台电脑的系统默认输入设备。请检查系统麦克风权限及默认输入设备；当前没有浏览器采音上传，远端手机或其他电脑不能通过这个按钮使用自己的麦克风。
+3. `config.json` 中 `interact.playSound=true` 表示由运行项目的电脑播放，网页会跳过重复播音；默认模板采用此模式。设为 `false` 时，网页通过音频队列播放 TTS 结果，仍可驱动形象；浏览器拦截自动播放时先点击页面。该字段控制播放位置，不是 TTS 服务开关。
+4. 配置 Live2D 后，播音会驱动口型和动作；有音素序列时优先使用，无音素数据时按音频时长驱动基础张闭嘴。语音服务可独立于角色资源使用。
+
+**其他语音后端**
+
+- 本地 ASR：设置 `ASR_mode=funasr`、`local_asr_ip=127.0.0.1`、`local_asr_port=10197`，并按 [本地 ASR 说明](asr/funasr/README.md)单独启动兼容服务。仓库附带服务加载 Paraformer，通过共享本机 WAV 路径识别；不是连接任意标准 FunASR 流式接口就能使用。该服务依赖版本与主项目不同，建议独立环境。
+- 微软 TTS：设置 `tts_module=azure`，填写 `ms_tts_key` 和 `ms_tts_region`，并从 [音色列表](tts/tts_voice.py)选择对应显示名，如 `晓晓(azure)`。该实现也保留无 Azure Key 时的 `edge_tts` 网络合成分支，音色例为 `晓晓(edge)`；它仍需联网。
+- 火山 TTS：设置 `tts_module=volcano`，填写 `volcano_tts_appid`、`volcano_tts_access_token`、`volcano_tts_cluster`、`volcano_tts_voice_type`。
+- 本地 GPT-SoVITS：使用 `tts_module=gptsovits_v3`，在同一 `[key]` 节添加 `gptsovits_api_url`、`gptsovits_ref_audio_path`、`gptsovits_prompt_text`、`gptsovits_prompt_lang`、`gptsovits_text_lang`、`gptsovits_timeout`。默认接口为 `http://127.0.0.1:9880/tts`，语言默认 `zh`、超时默认 120 秒；参考音频路径须存在，外部模型服务需另行启动。配置读取与调用见 [实现](tts/gptsovits_v3.py)，模型与参考音频不在仓库内。
+
+启动预检会检查默认阿里配置是否非空，不能替代真实识别 / 合成验收。没有识别文字时先检查录音设备与 ASR；有回复文字但无声音时检查 TTS 凭据、音色、播放位置、音量及浏览器自动播放限制。音频解码 / 转换报错还需检查 FFmpeg。先用文字完成商品咨询，再分别验证识别、合成和数字人动画，便于定位问题。
 
 ### 看图与试衣服务
 
