@@ -1,0 +1,550 @@
+{
+  "dataset_label": "原创虚构演示商品（不代表真实在售）",
+  "products": [
+    {
+      "product_id": "EC1001",
+      "name": "轻商务降噪蓝牙耳机",
+      "aliases": [
+        "降噪耳机",
+        "蓝牙耳机",
+        "耳机"
+      ],
+      "category": "数码配件",
+      "price": 399.0,
+      "highlights": [
+        "主动降噪",
+        "双设备连接",
+        "约30小时综合续航",
+        "一年演示保修"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1001-BLK",
+          "attributes": {
+            "颜色": "曜石黑"
+          },
+          "stock": 24
+        },
+        {
+          "sku_id": "EC1001-WHT",
+          "attributes": {
+            "颜色": "云雾白"
+          },
+          "stock": 11
+        }
+      ]
+    },
+    {
+      "product_id": "EC1002",
+      "name": "通勤防泼水托特包",
+      "aliases": [
+        "托特包",
+        "通勤包",
+        "手提包"
+      ],
+      "category": "包袋",
+      "price": 269.0,
+      "highlights": [
+        "防泼水面料",
+        "可放14英寸笔记本",
+        "内部分区收纳"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1002-GRY",
+          "attributes": {
+            "颜色": "石墨灰"
+          },
+          "stock": 18
+        },
+        {
+          "sku_id": "EC1002-BRN",
+          "attributes": {
+            "颜色": "摩卡棕"
+          },
+          "stock": 7
+        }
+      ]
+    },
+    {
+      "product_id": "EC1003",
+      "name": "商务修身西装外套",
+      "aliases": [
+        "西装",
+        "西装外套",
+        "商务外套"
+      ],
+      "category": "外套",
+      "price": 699.0,
+      "highlights": [
+        "修身剪裁",
+        "含羊毛混纺面料",
+        "建议干洗",
+        "尺码以商品页尺码表为准"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1003-BLK-S",
+          "attributes": {
+            "颜色": "经典黑",
+            "尺码": "S"
+          },
+          "stock": 5
+        },
+        {
+          "sku_id": "EC1003-BLK-M",
+          "attributes": {
+            "颜色": "经典黑",
+            "尺码": "M"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1003-BLK-L",
+          "attributes": {
+            "颜色": "经典黑",
+            "尺码": "L"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1003-GRY-M",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "M"
+          },
+          "stock": 4
+        },
+        {
+          "sku_id": "EC1003-GRY-L",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "L"
+          },
+          "stock": 3
+        },
+        {
+          "sku_id": "EC1003-GRY-XL",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "XL"
+          },
+          "stock": 2
+        }
+      ]
+    },
+    {
+      "product_id": "EC1004",
+      "name": "智能温显保温杯",
+      "aliases": [
+        "保温杯",
+        "温显杯",
+        "水杯"
+      ],
+      "category": "家居日用",
+      "price": 159.0,
+      "highlights": [
+        "杯盖温度显示",
+        "约480毫升",
+        "304不锈钢内胆",
+        "不建议放入洗碗机"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1004-NVY",
+          "attributes": {
+            "颜色": "藏青"
+          },
+          "stock": 32
+        },
+        {
+          "sku_id": "EC1004-PNK",
+          "attributes": {
+            "颜色": "豆沙粉"
+          },
+          "stock": 0
+        }
+      ]
+    },
+    {
+      "product_id": "EC1005",
+      "name": "中性云朵棉圆领短袖",
+      "aliases": [
+        "短袖",
+        "T恤",
+        "纯棉上衣"
+      ],
+      "category": "T恤/上衣",
+      "price": 129.0,
+      "highlights": [
+        "原创虚构样例",
+        "基础圆领版型",
+        "颜色与尺码仅用于交互演示"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1005-IVY-S",
+          "attributes": {
+            "颜色": "奶油白",
+            "尺码": "S"
+          },
+          "stock": 8
+        },
+        {
+          "sku_id": "EC1005-IVY-M",
+          "attributes": {
+            "颜色": "奶油白",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1005-IVY-L",
+          "attributes": {
+            "颜色": "奶油白",
+            "尺码": "L"
+          },
+          "stock": 7
+        },
+        {
+          "sku_id": "EC1005-SGE-M",
+          "attributes": {
+            "颜色": "雾霾蓝",
+            "尺码": "M"
+          },
+          "stock": 5
+        },
+        {
+          "sku_id": "EC1005-SGE-L",
+          "attributes": {
+            "颜色": "雾霾蓝",
+            "尺码": "L"
+          },
+          "stock": 4
+        },
+        {
+          "sku_id": "EC1005-XL",
+          "attributes": {
+            "颜色": "奶油白",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 8
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 60,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 60,
+          "max_weight_kg": 70,
+          "stock_public": 7
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ]
+    },
+    {
+      "product_id": "EC1006",
+      "name": "中性轻松直筒休闲长裤",
+      "aliases": [
+        "直筒裤",
+        "休闲裤",
+        "长裤"
+      ],
+      "category": "裤装",
+      "price": 159.0,
+      "highlights": [
+        "原创虚构样例",
+        "直筒轮廓",
+        "颜色与尺码仅用于交互演示"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1006-GRY-M",
+          "attributes": {
+            "颜色": "浅灰",
+            "尺码": "M"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1006-GRY-L",
+          "attributes": {
+            "颜色": "浅灰",
+            "尺码": "L"
+          },
+          "stock": 8
+        },
+        {
+          "sku_id": "EC1006-NVY-M",
+          "attributes": {
+            "颜色": "藏青",
+            "尺码": "M"
+          },
+          "stock": 5
+        },
+        {
+          "sku_id": "EC1006-NVY-L",
+          "attributes": {
+            "颜色": "藏青",
+            "尺码": "L"
+          },
+          "stock": 4
+        },
+        {
+          "sku_id": "EC1006-XL",
+          "attributes": {
+            "颜色": "浅灰",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "M",
+          "min_weight_kg": 48,
+          "max_weight_kg": 62,
+          "stock_public": 11
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 12
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ]
+    },
+    {
+      "product_id": "EC1007",
+      "name": "中性薄荷绿轻薄针织开衫",
+      "aliases": [
+        "开衫",
+        "针织衫",
+        "薄外套"
+      ],
+      "category": "卫衣/针织",
+      "price": 259.0,
+      "highlights": [
+        "原创虚构样例",
+        "轻薄针织外搭",
+        "颜色与尺码仅用于交互演示"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1007-MNT-S",
+          "attributes": {
+            "颜色": "薄荷绿",
+            "尺码": "S"
+          },
+          "stock": 5
+        },
+        {
+          "sku_id": "EC1007-MNT-M",
+          "attributes": {
+            "颜色": "薄荷绿",
+            "尺码": "M"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1007-MNT-L",
+          "attributes": {
+            "颜色": "薄荷绿",
+            "尺码": "L"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1007-XL",
+          "attributes": {
+            "颜色": "薄荷绿",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 42,
+          "max_weight_kg": 52,
+          "stock_public": 5
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 52,
+          "max_weight_kg": 64,
+          "stock_public": 9
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 64,
+          "max_weight_kg": 76,
+          "stock_public": 6
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ]
+    },
+    {
+      "product_id": "EC1008",
+      "name": "中性秋季宽松通勤短外套",
+      "aliases": [
+        "秋季外套",
+        "短外套",
+        "宽松外套",
+        "通勤外套"
+      ],
+      "category": "外套",
+      "price": 239.0,
+      "highlights": [
+        "原创虚构样例",
+        "宽松简约轮廓",
+        "颜色与尺码仅用于交互演示"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1008-BLK-M",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "M"
+          },
+          "stock": 10
+        },
+        {
+          "sku_id": "EC1008-BLK-L",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "L"
+          },
+          "stock": 8
+        },
+        {
+          "sku_id": "EC1008-IVY-M",
+          "attributes": {
+            "颜色": "米白色",
+            "尺码": "M"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1008-XL",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "M",
+          "min_weight_kg": 48,
+          "max_weight_kg": 62,
+          "stock_public": 16
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 8
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ]
+    },
+    {
+      "product_id": "EC1009",
+      "name": "中性秋季宽松休闲通勤夹克",
+      "aliases": [
+        "秋季夹克",
+        "休闲夹克",
+        "宽松外套",
+        "通勤外套"
+      ],
+      "category": "外套",
+      "price": 289.0,
+      "highlights": [
+        "原创虚构样例",
+        "直线轮廓",
+        "颜色与尺码仅用于交互演示"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1009-GRY-M",
+          "attributes": {
+            "颜色": "浅灰色",
+            "尺码": "M"
+          },
+          "stock": 7
+        },
+        {
+          "sku_id": "EC1009-GRY-L",
+          "attributes": {
+            "颜色": "浅灰色",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1009-XL",
+          "attributes": {
+            "颜色": "浅灰色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "M",
+          "min_weight_kg": 48,
+          "max_weight_kg": 62,
+          "stock_public": 7
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ]
+    }
+  ]
+}

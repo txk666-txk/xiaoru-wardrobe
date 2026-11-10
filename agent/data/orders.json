@@ -1,0 +1,45 @@
+{
+  "dataset_label": "演示订单数据（不代表真实交易）",
+  "updated_at": "2026-09-27",
+  "orders": [
+    {
+      "order_id": "A10001",
+      "user_id": "User",
+      "status": "shipped",
+      "status_text": "已发货",
+      "created_at": "2026-09-24 10:18:00",
+      "paid_amount": 699.0,
+      "payment_status": "paid",
+      "logistics_no_masked": "SFDEMO****001",
+      "items": [
+        {"product_id": "EC1003", "product_name": "商务修身西装外套", "quantity": 1, "spec": "经典黑 / M"}
+      ]
+    },
+    {
+      "order_id": "A10002",
+      "user_id": "User",
+      "status": "completed",
+      "status_text": "已完成",
+      "created_at": "2026-09-08 15:42:00",
+      "paid_amount": 399.0,
+      "payment_status": "paid",
+      "logistics_no_masked": "YTDEMO****882",
+      "items": [
+        {"product_id": "EC1001", "product_name": "轻商务降噪蓝牙耳机", "quantity": 1, "spec": "曜石黑"}
+      ]
+    },
+    {
+      "order_id": "A10003",
+      "user_id": "demo-other-user",
+      "status": "pending_payment",
+      "status_text": "待付款",
+      "created_at": "2026-09-27 09:30:00",
+      "paid_amount": 0.0,
+      "payment_status": "unpaid",
+      "logistics_no_masked": "",
+      "items": [
+        {"product_id": "EC1004", "product_name": "智能温显保温杯", "quantity": 1, "spec": "藏青"}
+      ]
+    }
+  ]
+}

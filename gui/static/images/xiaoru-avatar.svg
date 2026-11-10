@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">小如头像插画</title>
+  <circle cx="128" cy="128" r="126" fill="#f3e7df"/>
+  <path d="M48 224c5-37 23-58 54-67h52c31 9 49 30 54 67-23 20-50 30-80 30s-57-10-80-30" fill="#fffaf6"/>
+  <path d="M60 119c0-57 27-91 69-91 41 0 69 34 69 91v43c-8 30-33 58-69 58s-61-28-69-58z" fill="#392a27"/>
+  <path d="M85 110c0-31 17-52 44-52s44 21 44 52v42c0 31-19 54-44 54s-44-23-44-54z" fill="#f2c6a8"/>
+  <path d="M83 111c6-33 24-50 50-50 20 0 33 9 42 25-17-7-34-10-50-8-14 2-27 11-42 33" fill="#392a27"/>
+  <path d="M65 120c-2 41 7 65 24 83-26-7-42-29-42-61 0-17 6-31 18-42zm126 0c2 41-7 65-24 83 26-7 42-29 42-61 0-17-6-31-18-42z" fill="#392a27"/>
+  <path d="M103 126c5-4 11-4 16 0m18 0c5-4 11-4 16 0" fill="none" stroke="#533c36" stroke-linecap="round" stroke-width="4"/>
+  <circle cx="111" cy="137" r="3" fill="#392a27"/><circle cx="145" cy="137" r="3" fill="#392a27"/>
+  <path d="M119 160c6 6 13 6 19 0" fill="none" stroke="#bc655c" stroke-linecap="round" stroke-width="3"/>
+  <path d="M97 205c9 13 19 20 31 20s22-7 31-20l28 24H69z" fill="#d8756c"/>
+  <path d="M106 190c6 7 13 10 22 10s16-3 22-10v18c-6 10-13 15-22 15s-16-5-22-15z" fill="#e9b493"/>
+  <path d="M173 48l4-10 4 10 10 4-10 4-4 10-4-10-10-4z" fill="#d8756c"/>
+  <circle cx="70" cy="77" r="4" fill="#d8756c"/><circle cx="190" cy="193" r="3" fill="#d8756c"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 120" role="img" aria-labelledby="title">
+  <title id="title">小如的衣橱</title>
+  <rect x="8" y="24" width="72" height="72" rx="16" fill="#c54036"/>
+  <path d="M41 47c0-9 14-9 14 0 0 6-11 7-11 13l24 17H21l23-17" fill="none" stroke="#fff9f3" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="96" y="66" font-family="Microsoft YaHei,sans-serif" font-size="30" font-weight="600" fill="#47362e">小如的衣橱</text>
+  <text x="97" y="88" font-family="Microsoft YaHei,sans-serif" font-size="13" letter-spacing="3" fill="#8c7b72">穿搭 · 生活 · 陪伴</text>
+</svg>

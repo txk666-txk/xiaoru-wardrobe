@@ -1,0 +1,89 @@
+<section v-show="storeActiveTab === 'styling'" class="storefront-view styling-view">
+  <header class="style-hero">
+    <span class="style-kicker">YOUR STYLE, YOUR WAY</span>
+    <h2>穿搭顾问</h2>
+    <p>从已有衣服出发，找到值得添置的一件。</p>
+    <span class="style-status" :class="{'ready': styleStatus.available}">[[styleStatus.message || '进入后检查本地看图服务…']]</span>
+    <button type="button" class="style-refresh" :disabled="styleLoading" @click="loadStyleAdvisor">刷新状态与建议</button>
+  </header>
+  <div class="style-mode" aria-label="选择推荐方式">
+    <button type="button" :disabled="styleBusy" :aria-pressed="styleMode === 'person'" :class="{'active': styleMode === 'person'}" @click="styleMode = 'person'">本人照片</button>
+    <button type="button" :disabled="styleBusy" :aria-pressed="styleMode === 'garment'" :class="{'active': styleMode === 'garment'}" @click="styleMode = 'garment'">已有衣服</button>
+    <button type="button" :disabled="styleBusy" :aria-pressed="styleMode === 'text'" :class="{'active': styleMode === 'text'}" @click="styleMode = 'text'">不传照片</button>
+  </div>
+  <div class="style-form">
+    <template v-if="styleMode !== 'text'">
+      <input ref="stylePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="handleStylePhoto">
+      <button type="button" class="style-upload" :class="{'dragging': styleDragging}" :disabled="styleBusy" @click="chooseStylePhoto" @dragover.prevent="styleDragging = !styleBusy" @dragleave.prevent="styleDragging = false" @drop.prevent="handleStyleDrop">
+        <img v-if="stylePreview" :src="stylePreview" alt="本次穿搭照片预览">
+        <span><b>[[stylePreview ? '点击或拖入图片更换' : '拖入图片，或点击上传']]</b><small>[[styleMode === 'person' ? '清晰全身照，用于观察衣服与配色' : '拍摄已有衣服，优先搭配、不重复购买']]</small><small>JPEG / PNG / WebP · 最大 64MB</small></span>
+      </button>
+      <label class="style-consent"><input type="checkbox" v-model="styleConsent" :disabled="styleBusy">同意在本机分析这张照片，处理完成清除服务器照片</label>
+      <p v-if="!styleStatus.available" class="style-hint">看图暂不可用，可切换“不传照片”先体验搭配。</p>
+    </template>
+    <fieldset :disabled="styleBusy" class="style-fields">
+      <legend class="sr-only">搭配需求</legend>
+      <label>穿去哪里<select v-model="styleOptions.scene"><option v-for="scene in styleScenes" :key="scene">[[scene]]</option></select></label>
+      <label>想要的风格<select v-model="styleOptions.style"><option v-for="style in styleStyles" :key="style">[[style]]</option></select></label>
+      <label>新增衣服预算（元）<input type="number" v-model.number="styleOptions.budget" min="30" max="10000" step="10"></label>
+      <label>版型<select v-model="styleOptions.fit"><option>宽松</option><option>合身</option><option>修身</option></select></label>
+      <label>款式范围<select v-model="styleOptions.gender"><option>不限</option><option>男款</option><option>女款</option><option>中性</option></select></label>
+      <label>气温（选填，℃）<input type="number" v-model.number="styleOptions.temperature" placeholder="例如 16" min="-30" max="50"></label>
+      <label>身高（选填，cm）<input type="number" v-model.number="styleOptions.height_cm" placeholder="真实身高" min="120" max="220"></label>
+      <label>体重（选填，kg）<input type="number" v-model.number="styleOptions.weight_kg" placeholder="用于核对尺码" min="30" max="200"></label>
+    </fieldset>
+    <details class="style-preferences">
+      <summary>配色偏好与记忆</summary>
+      <div class="style-color-options"><span>喜欢的颜色（最多六种）</span><label v-for="color in styleColors" :key="'like-' + color"><input type="checkbox" v-model="styleOptions.colors" :value="color" :disabled="styleBusy || (styleOptions.colors.length >= 6 && !styleOptions.colors.includes(color))">[[color]]</label></div>
+      <div class="style-color-options"><span>不想买的颜色（最多六种）</span><label v-for="color in styleColors" :key="'exclude-' + color"><input type="checkbox" v-model="styleOptions.excluded_colors" :value="color" :disabled="styleBusy || (styleOptions.excluded_colors.length >= 6 && !styleOptions.excluded_colors.includes(color))">[[color]]</label></div>
+      <label class="style-consent"><input type="checkbox" v-model="styleSavingConsent">同意记住风格、版型、款式范围、配色和预算</label>
+      <small>照片、身高体重不写入长期偏好；偏好属于当前浏览器客户会话。</small>
+      <div class="style-actions"><button type="button" :disabled="!styleSavingConsent" @click="saveStylePreferences">保存偏好</button><button type="button" @click="forgetStylePreferences">删除偏好</button></div>
+    </details>
+    <div class="style-actions">
+      <button type="button" class="style-primary" :disabled="styleBusy || (styleMode !== 'text' && (!stylePhoto || !styleConsent || !styleStatus.available))" @click="submitStyle">[[styleBusy ? '正在整理搭配…' : '为我搭配']]</button>
+      <button type="button" :disabled="styleBusy" @click="clearStyleAdvice">清除照片与建议</button>
+    </div>
+    <p class="style-hint">本地看图使用 CPU，为试衣保留显存。识别可能有误；气温由你填写。</p>
+  </div>
+  <div v-if="styleJob && !styleResult" class="style-progress" role="status"><span v-if="styleBusy" class="storefront-spinner"></span>[[styleJob.message]]</div>
+  <section v-if="styleResult" class="style-results" aria-live="polite">
+    <div class="style-result-heading"><span>STYLE EDIT</span><h3>[[styleResult.summary]]</h3></div>
+    <div v-if="styleResult.observation" class="style-observation">
+      <strong>照片中辨认到</strong>
+      <span v-for="(item, itemIndex) in styleResult.observation.garments" :key="itemIndex">[[item.color]] · [[styleCategoryLabels[item.category] ]] · [[item.style]]</span>
+      <small>[[styleResult.observation.notice]]</small>
+    </div>
+    <article v-for="(outfit, outfitIndex) in styleResult.outfits" :key="outfitIndex" class="style-outfit">
+      <header><div><small>LOOK 0[[outfitIndex + 1]]</small><h3>[[outfit.title]]</h3></div><strong>¥[[formatMoney(outfit.total)]]<small>新增商品参考合计</small></strong></header>
+      <p>[[outfit.reason]]</p>
+      <div class="style-items">
+        <article v-for="item in outfit.items" :key="item.product_id" class="style-item">
+          <img v-if="item.image_url" :src="item.image_url" :alt="item.name" loading="lazy" @error="$event.target.style.display = 'none'">
+          <div class="style-item-copy"><span>[[styleCategoryLabels[item.group] ]] · ¥[[formatMoney(item.price)]]</span><h4>[[item.name]]</h4><p>[[item.reason]]</p><small>[[item.stock_note]] · [[item.size_note]]</small><small v-if="item.sizes.length">可进一步核对：[[item.sizes.join(' / ')]]</small></div>
+          <div class="style-item-actions">
+            <button type="button" :disabled="styleBusy" :aria-pressed="styleKeepIds.includes(item.product_id)" :class="{'selected': styleKeepIds.includes(item.product_id)}" @click="toggleStyleKeep(item.product_id)">[[styleKeepIds.includes(item.product_id) ? '已保留 ✓' : '保留这件']]</button>
+            <button type="button" :disabled="!item.tryon_supported" :title="item.tryon_supported ? '开始试穿' : '配置已授权的真实服装图片后可试穿'" @click="tryStyleProduct(item)">试穿</button>
+            <button type="button" @click="openStyleProduct(item, 'size')">尺码</button>
+            <button type="button" @click="openStyleProduct(item, 'order')">订购</button>
+            <button type="button" :aria-pressed="styleCompareIds.includes(item.product_id)" @click="toggleStyleCompare(item)">[[styleCompareIds.includes(item.product_id) ? '已选比较' : '比较']]</button>
+            <a v-if="item.source_url" :href="item.source_url" target="_blank" rel="noopener noreferrer">原页 ↗</a>
+          </div>
+        </article>
+      </div>
+    </article>
+    <div class="style-refinement">
+      <h3>再靠近你的喜好一点</h3>
+      <div class="style-actions"><button type="button" :disabled="styleBusy" @click="refineStyle('太正式了')">休闲一点</button><button type="button" :disabled="styleBusy" @click="refineStyle('太花哨了')">简约一点</button><button type="button" :disabled="styleBusy" @click="refineStyle('便宜一点')">少花一点</button></div>
+      <div v-if="styleKeepIds.length" class="style-actions"><span class="style-hint">已保留 [[styleKeepIds.length]] 件</span><button type="button" :disabled="styleBusy" @click="styleKeepIds = []">取消全部保留</button></div>
+      <label><span class="sr-only">调整搭配</span><input v-model.trim="styleFeedback" :disabled="styleBusy" maxlength="500" placeholder="例如：保留裤子，预算控制在200元" @keyup.enter="refineStyle"></label>
+      <div class="style-actions"><button type="button" class="style-primary" :disabled="styleBusy" @click="refineStyle">保留已选，重新搭配</button><button type="button" @click="sendCommercePrompt('请根据我当前的穿搭建议，帮我继续调整搭配')">继续问客服</button></div>
+    </div>
+    <p class="style-hint">[[styleResult.notice]]</p>
+  </section>
+  <div v-if="styleCompareIds.length" class="style-compare-bar"><span>已选 [[styleCompareIds.length]] 件</span><button type="button" :disabled="styleCompareIds.length < 2" @click="compareStyleProducts">比较商品</button><button type="button" @click="styleCompareIds = []">清空</button></div>
+  <section v-if="styleComparison" class="style-comparison" aria-live="polite">
+    <h3>帮你做选择</h3><p>[[styleComparison.summary]]</p>
+    <div v-for="item in styleComparison.items" :key="item.product_id" class="style-comparison-item"><img v-if="item.image_url" :src="item.image_url" :alt="item.name" loading="lazy"><div><strong>[[item.name]]</strong><span>[[item.price == null ? '参考价待核验' : '¥' + formatMoney(item.price)]] · [[item.category]]</span><small>[[item.colors.length ? item.colors.join(' / ') : '配色待核验']] · [[item.stock_note]]</small><small>[[item.size_note]]</small><button type="button" :disabled="!item.tryon_supported" :title="item.tryon_supported ? '开始试穿' : '配置已授权的真实服装图片后可试穿'" @click="tryStyleProduct(item)">试穿看看</button></div></div>
+  </section>
+</section>

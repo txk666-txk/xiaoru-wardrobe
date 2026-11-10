@@ -1,0 +1,42 @@
+requests
+Pillow>=10,<13
+numpy
+pyaudio~=0.2.11
+# LangGraph SDK requires websockets >=14. Fay's servers explicitly use the
+# legacy asyncio API so their existing (websocket, path) handlers keep working.
+websockets>=14,<17
+ws4py~=0.5.1
+PyQt5==5.15.10
+PyQt5-sip==12.13.0
+PyQtWebEngine==5.15.6
+flask~=3.0.0
+openpyxl~=3.0.9
+flask_cors~=3.0.10
+websocket-client
+azure-cognitiveservices-speech
+aliyun-python-sdk-core
+simhash
+pytz
+gevent
+edge_tts
+pydub
+imageio-ffmpeg==0.6.0
+tenacity==8.2.3
+pygame
+scipy
+flask-httpauth
+opencv-python
+psutil
+langchain
+langchain_openai
+langgraph
+bs4
+schedule
+# Fay's low-level MCP servers use the v1 decorator API. MCP v2 is a breaking
+# rewrite and requires a source migration before it can be adopted.
+mcp==1.29.0
+python-docx
+python-pptx
+chromadb
+sentence_transformers
+pdfplumber

@@ -1,0 +1,147 @@
+{
+  "dataset_label": "电商客服政策知识库",
+  "updated_at": "2026-09-28",
+  "disclaimer": "法律法规内容用于客服问答辅助，不替代专业法律意见；店铺规则均为本项目演示政策，不代表任何真实店铺已公示的承诺。真实订单以适用法律、原商品页和真实店铺核实结果为准。",
+  "sources": [
+    {
+      "source_id": "consumer_rights_law",
+      "title": "中华人民共和国消费者权益保护法",
+      "publisher": "全国人民代表大会常务委员会 / 国家市场监督管理总局转载",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_e6dfa55ac9404b9cb3ff92e51f6563b4.html",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "consumer_regulation_2024",
+      "title": "中华人民共和国消费者权益保护法实施条例",
+      "publisher": "国务院",
+      "url": "https://www.gov.cn/zhengce/202406/content_6955346.htm",
+      "effective_date": "2024-07-01",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "seven_day_return",
+      "title": "网络购买商品七日无理由退货暂行办法（2020年修订）",
+      "publisher": "国家市场监督管理总局",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_9d1398f5fb8d4be9a4af863b56e8ae5a.html",
+      "effective_date": "2017-03-15",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "ecommerce_law",
+      "title": "中华人民共和国电子商务法",
+      "publisher": "全国人民代表大会常务委员会",
+      "url": "https://www.npc.gov.cn/npc/c2/c30834/201905/t20190521_278179.html",
+      "effective_date": "2019-01-01",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "online_transaction_rules",
+      "title": "网络交易监督管理办法",
+      "publisher": "国家市场监督管理总局",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_f3e5d35eac254ad4b8b3c4a039d67d13.html",
+      "effective_date": "2021-05-01",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "personal_information_law",
+      "title": "中华人民共和国个人信息保护法",
+      "publisher": "全国人民代表大会常务委员会",
+      "url": "https://www.npc.gov.cn/npc/c2/c30834/202108/t20210820_313088.html",
+      "effective_date": "2021-11-01",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "price_rules",
+      "title": "明码标价和禁止价格欺诈规定",
+      "publisher": "国家市场监督管理总局",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_f9109e89166644a0ad927f1c17b433f1.html",
+      "effective_date": "2022-07-01",
+      "accessed_at": "2026-09-27"
+    },
+    {
+      "source_id": "express_regulation_2024",
+      "title": "快递暂行条例（2024年修订）",
+      "publisher": "国务院",
+      "url": "https://www.gov.cn/zhengce/202403/content_6942294.htm",
+      "accessed_at": "2026-09-27"
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "seven_day_no_reason",
+      "title": "七日无理由退货",
+      "scope": "legal_baseline",
+      "keywords": ["七天无理由", "7天无理由", "无理由退货", "不喜欢", "退货运费"],
+      "content": "网络购买商品通常可自收到商品之日起七日内无理由退货，但消费者定作、鲜活易腐、在线下载或消费者拆封的音像制品和计算机软件等数字化商品、交付的报纸期刊等法定例外不适用；其他根据商品性质不宜退货且购买时经消费者确认的商品也可能不适用。退回商品应当完好；为查验而合理拆封不能仅据此认定为不完好。无理由退货的退回运费原则上由消费者承担，经营者与消费者另有约定的从其约定。具体商品的公开售后标签及真实店铺承诺须逐项核对，不得宣称全店所有商品均无条件适用。",
+      "customer_reply": "收到商品后七日内通常可申请无理由退货，但法定例外或购买时确认不宜退的商品除外。退回商品应完好；合理拆封查验不当然视为不完好，退回运费原则上由顾客承担，另有约定除外。",
+      "source_ids": ["consumer_rights_law", "seven_day_return", "consumer_regulation_2024"]
+    },
+    {
+      "policy_id": "quality_after_sales",
+      "title": "质量问题售后",
+      "scope": "legal_baseline",
+      "keywords": ["坏了", "质量问题", "故障", "破损", "瑕疵", "维修", "换货"],
+      "content": "商品不符合质量要求时，消费者可依照国家规定、当事人约定要求退货，或者要求经营者履行更换、修理等义务；经营者履行相关义务时应承担运输等必要费用。客服先核对订单、问题描述和必要凭证；不能仅因超过七日无理由期限，就直接否定质量问题售后。责任或方案不能确定时转人工，不得擅自认定顾客责任。",
+      "customer_reply": "很抱歉商品出了问题。质量问题可按退换修规则核实，不能仅因超过七日无理由期限就拒绝；核对订单和必要凭证后给方案，依法应由经营者承担必要运费。",
+      "source_ids": ["consumer_rights_law", "consumer_regulation_2024"]
+    },
+    {
+      "policy_id": "demo_refund_timing",
+      "title": "退款路径与到账时间",
+      "scope": "demo_store_policy",
+      "keywords": ["退款多久到账", "退款时间", "原路退回", "退款进度"],
+      "content": "本地演示订单没有真实支付，演示退款只改变本地状态，不会产生资金到账。真实交易平台订单的退款路径和到账时间应以原订单、支付机构及店铺审核结果为准；客服不得承诺固定到账日，也不得索取支付密码、短信验证码或完整银行卡号。",
+      "source_ids": ["consumer_regulation_2024", "personal_information_law"]
+    },
+    {
+      "policy_id": "demo_shipping",
+      "title": "发货与物流时效",
+      "scope": "demo_store_policy",
+      "keywords": ["发货", "物流", "快递", "什么时候到", "预计送达", "延迟"],
+      "content": "公开店铺页面没有提供可用于全店承诺的统一发货时效，真实发货时间以原商品页、订单页及店铺通知为准。本项目的DEMO订单物流只用于本地演示。物流到达时间只能表述为预计，受天气、交通和网点处理影响，客服不得承诺必达。",
+      "source_ids": ["ecommerce_law", "express_regulation_2024"]
+    },
+    {
+      "policy_id": "demo_promotion",
+      "title": "优惠券与活动",
+      "scope": "demo_store_policy",
+      "keywords": ["优惠券", "满减", "活动价", "促销", "差价", "价格"],
+      "content": "优惠券适用门槛、商品范围、有效期、是否可叠加，以领取页、商品页和结算页明确展示的演示规则为准。客服不得虚构原价、库存紧张或活动截止时间，不得以误导性表述催促下单。",
+      "source_ids": ["price_rules", "ecommerce_law", "online_transaction_rules"]
+    },
+    {
+      "policy_id": "service_conduct",
+      "title": "智能客服服务与推荐准则",
+      "scope": "demo_store_policy",
+      "keywords": ["客服态度", "服务准则", "服务条款", "商品推荐", "推荐商品", "宣传商品", "情绪价值", "安慰顾客", "推销", "店铺利益"],
+      "content": "维护店铺正当利益的前提是诚实介绍商品、减少误购和合理处理售后；法律权利和已公示承诺优先，不以成交额为由压制投诉或拒绝退货。先回应顾客诉求，以礼貌、耐心、共情且不过度亲密的方式交流；理解失望或焦虑，不指责、不争辩、不提供心理治疗或私人陪伴承诺。根据预算、用途、风格和已核实的商品事实，说明匹配理由与局限，给出少量候选及可核验来源；尊重顾客不购买的选择。推广优惠只依据商品页、活动页和结算页事实，不虚构功效、销量、原价、优惠、库存紧张或截止时间，不施压下单。信息不足先问关键偏好或如实说明无法核验，不编造商品。",
+      "customer_reply": "我会先了解你的用途和偏好，再推荐少量有依据的商品；不虚构优惠或催促下单。购物和售后上的顾虑都可以告诉我，我会认真核对并说明可行选择。",
+      "source_ids": ["price_rules", "ecommerce_law", "online_transaction_rules", "consumer_rights_law"]
+    },
+    {
+      "policy_id": "large_order_return_review",
+      "title": "大单及批量退货人工复核",
+      "scope": "demo_store_policy",
+      "keywords": ["大型订单", "大额订单", "大额退货", "大单退货", "大宗退货", "批量退货", "批发退货", "大量退货", "十件退货", "10件退货", "5000元退货"],
+      "content": "演示分流规则：同一订单购买件数达到10件，或订单实付金额达到5000元时，退货请求转人工复核订单明细、履约情况和适用规则；阈值仅为本项目示例，可由真实店铺在合法范围内调整，未经核实不能宣称是任何真实店铺条款。客服先确认诉求并仅收集必要的订单号和问题描述，说明转人工核对，不自动拒绝、不收额外门槛费用，也不承诺退款已批准或到账。大单转人工不延后、取消或缩减依法享有的七日无理由及质量问题售后权利；真实订单由原交易平台与商家处理，本地DEMO流程不发生真实退款。",
+      "customer_reply": "演示规则中，同单满10件或实付满5000元的退货需人工复核，这不是拒退，也不影响七日无理由和质量售后权利。真实订单请通过原店铺联系人工；本系统不能执行真实退款。",
+      "source_ids": ["consumer_rights_law", "consumer_regulation_2024", "seven_day_return"]
+    },
+    {
+      "policy_id": "privacy_minimization",
+      "title": "隐私与敏感信息保护",
+      "scope": "legal_baseline",
+      "keywords": ["隐私", "个人信息", "手机号", "地址", "身份证", "银行卡", "验证码"],
+      "content": "处理个人信息应具有明确、合理目的，并与处理目的直接相关，采取对个人权益影响最小的方式。客服只收集完成当前服务所必需的信息，订单核验优先使用脱敏信息；不得索取支付密码、短信验证码、完整银行卡号或与当前事项无关的完整身份信息。",
+      "source_ids": ["personal_information_law", "online_transaction_rules"]
+    },
+    {
+      "policy_id": "human_escalation",
+      "title": "人工客服升级规则",
+      "scope": "demo_store_policy",
+      "keywords": ["人工客服", "投诉", "升级处理", "无法解决", "转人工"],
+      "content": "发生以下情况应建议转人工：工具数据缺失或冲突；疑似账户或支付安全风险；多次物流异常；质量争议无法判断；顾客明确要求人工；达到演示大单/批量退货分流阈值；需要真实执行退款、取消订单、补发或修改地址。升级时仅传递处理所需的最少信息。转人工不是拒绝售后或中止法定时限的理由。",
+      "source_ids": ["consumer_regulation_2024", "personal_information_law"]
+    }
+  ]
+}

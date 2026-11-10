@@ -1,0 +1,810 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import asyncio
+import logging
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import inspect
+import time
+from contextlib import AsyncExitStack
+from typing import Optional, Dict, Any, Tuple, List, Callable
+
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+from faymcp import tool_registry
+
+# 尝试导入本地 stdio 传输
+try:
+    from mcp.client.stdio import stdio_client, StdioServerParameters
+    HAS_STDIO = True
+except Exception:
+    stdio_client = None
+    StdioServerParameters = None
+    HAS_STDIO = False
+
+logger = logging.getLogger(__name__)
+_PYTHON_VERSION_CACHE: Dict[str, Optional[str]] = {}
+_PYTHON_RUNNER_FLAGS = {"-u", "-B", "-E", "-s", "-S", "-O", "-OO"}
+
+
+def _runtime_root_dir() -> str:
+    if getattr(sys, "frozen", False):
+        return os.path.abspath(os.path.dirname(sys.executable))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _normalize_rel_path(path_value: Optional[str]) -> str:
+    return str(path_value or "").replace("\\", "/").strip().lower()
+
+
+def _path_matches(path_value: Optional[str], expected_suffix: str) -> bool:
+    normalized = _normalize_rel_path(path_value)
+    suffix = _normalize_rel_path(expected_suffix)
+    if not normalized or not suffix:
+        return False
+    return normalized == suffix or normalized.endswith("/" + suffix)
+
+
+def _is_python_command(command: Any) -> bool:
+    command_text = str(command or "").strip().lower()
+    if not command_text:
+        return False
+    if command_text in {"python", "python.exe", "pythonw", "pythonw.exe"}:
+        return True
+    return os.path.basename(command_text) in {"python", "python.exe", "pythonw", "pythonw.exe"}
+
+
+def _resolve_existing_path(path_value: Optional[str], *base_dirs: Optional[str]) -> Optional[str]:
+    if not isinstance(path_value, str) or not path_value.strip():
+        return None
+    candidate = path_value.strip()
+    if os.path.isabs(candidate):
+        return candidate if os.path.exists(candidate) else None
+    for base_dir in base_dirs:
+        if not base_dir:
+            continue
+        abs_path = os.path.abspath(os.path.join(base_dir, candidate))
+        if os.path.exists(abs_path):
+            return abs_path
+    return None
+
+
+def _resolve_python_command(command: Any) -> Optional[str]:
+    if not isinstance(command, str) or not command.strip():
+        return None
+
+    candidate = command.strip()
+    if os.path.isabs(candidate):
+        return candidate if os.path.exists(candidate) else None
+
+    resolved = shutil.which(candidate)
+    if resolved:
+        return resolved
+
+    base_name = os.path.basename(candidate)
+    if base_name and base_name != candidate:
+        return shutil.which(base_name)
+    return None
+
+
+def _resolve_python_version(command: str) -> Optional[str]:
+    if not isinstance(command, str) or not command.strip():
+        return None
+    cache_key = command.strip()
+    if cache_key in _PYTHON_VERSION_CACHE:
+        return _PYTHON_VERSION_CACHE[cache_key]
+
+    version_text = None
+    try:
+        result = subprocess.run(
+            [cache_key, "-c", "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            version_text = (result.stdout or "").strip() or None
+    except Exception:
+        version_text = None
+
+    _PYTHON_VERSION_CACHE[cache_key] = version_text
+    return version_text
+
+
+def _resolve_stdio_arg_paths(args: List[Any], cwd: Optional[str], runtime_root: str) -> List[Any]:
+    resolved_args: List[Any] = []
+    for arg in args:
+        if isinstance(arg, str) and arg and not arg.startswith("-"):
+            resolved_arg = _resolve_existing_path(arg, cwd, runtime_root)
+            resolved_args.append(resolved_arg or arg)
+        else:
+            resolved_args.append(arg)
+    return resolved_args
+
+
+def _find_python_script_arg(args: List[Any]) -> Optional[str]:
+    for arg in args:
+        if isinstance(arg, str) and arg and not arg.startswith("-"):
+            return arg
+    return None
+
+
+def _is_path_within(base_dir: str, target_path: str) -> bool:
+    try:
+        return os.path.commonpath([os.path.abspath(base_dir), os.path.abspath(target_path)]) == os.path.abspath(base_dir)
+    except Exception:
+        return False
+
+
+def _merge_process_env(env: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    merged_env = dict(os.environ)
+    if isinstance(env, dict):
+        for key, value in env.items():
+            if value is None:
+                merged_env.pop(str(key), None)
+            else:
+                merged_env[str(key)] = str(value)
+    return merged_env
+
+
+def _inject_packaged_python_env(
+    env: Optional[Dict[str, Any]], runtime_root: str, command: Any
+) -> Optional[Dict[str, str]]:
+    if not getattr(sys, "frozen", False):
+        return env
+    if not _is_python_command(command):
+        return env
+
+    resolved_python = _resolve_python_command(command)
+    if not resolved_python:
+        return env
+
+    packaged_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    system_version = _resolve_python_version(resolved_python)
+    if system_version != packaged_version:
+        logger.info(
+            "Skip packaged MCP dependency injection for %s: system Python %s != bundled runtime %s",
+            resolved_python,
+            system_version or "unknown",
+            packaged_version,
+        )
+        return env
+
+    merged_env = _merge_process_env(env)
+    existing_pythonpath = merged_env.get("PYTHONPATH", "")
+    pythonpath_parts = [runtime_root]
+    if existing_pythonpath:
+        pythonpath_parts.append(existing_pythonpath)
+    merged_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+    existing_path = merged_env.get("PATH", "")
+    runtime_root_norm = os.path.normcase(os.path.abspath(runtime_root))
+    path_parts = [part for part in existing_path.split(os.pathsep) if part]
+    if not any(os.path.normcase(os.path.abspath(part)) == runtime_root_norm for part in path_parts):
+        merged_env["PATH"] = runtime_root + (os.pathsep + existing_path if existing_path else "")
+
+    merged_env.setdefault("PYTHONIOENCODING", "utf-8")
+    logger.info("Injected packaged MCP dependencies for system Python: %s", resolved_python)
+    return merged_env
+
+
+def _resolve_packaged_stdio_runner(
+    runtime_root: str, command: Any, args: List[Any], cwd: Optional[str]
+) -> Optional[Tuple[str, List[Any], Optional[str]]]:
+    if not getattr(sys, "frozen", False):
+        return None
+    if not _is_python_command(command):
+        return None
+
+    resolved_args = _resolve_stdio_arg_paths(args, cwd, runtime_root)
+    script_arg = _find_python_script_arg(resolved_args)
+    if not script_arg:
+        return None
+    if not isinstance(script_arg, str) or not script_arg.lower().endswith(".py"):
+        return None
+    if not os.path.exists(script_arg):
+        return None
+    if not _is_path_within(runtime_root, script_arg):
+        return None
+
+    runner_command = os.path.abspath(sys.executable)
+    runner_args = ["--mcp-stdio-runner"] + resolved_args
+    return runner_command, runner_args, cwd
+    return None
+
+
+def _is_awaitable(obj: Any) -> bool:
+    try:
+        return inspect.isawaitable(obj)
+    except Exception:
+        return False
+
+
+async def _await_or_value(obj, timeout: Optional[float] = None):
+    """如果是 awaitable 则等待（带超时），否则直接返回。"""
+    if _is_awaitable(obj):
+        if timeout is not None:
+            return await asyncio.wait_for(obj, timeout=timeout)
+        return await obj
+    return obj
+
+
+class McpClient:
+    """
+    兼容多版本 mcp 的 MCP 客户端，支持 SSE 与 STDIO。
+    修复：部分版本的 list_tools 返回同步 list，如果对其 await 会报
+    "object list can't be used in 'await' expression"。
+    """
+
+    def __init__(self, server_url: Optional[str] = None, api_key: Optional[str] = None,
+                 transport: str = "sse", stdio_config: Optional[Dict[str, Any]] = None,
+                 server_id: Optional[int] = None, tools_refresh_interval: int = 60,
+                 enabled_lookup: Optional[Callable[[str], bool]] = None):
+        self.server_url = server_url
+        self.api_key = api_key
+        self.transport = transport or "sse"
+        if self.transport not in ("sse", "stdio"):
+            self.transport = "sse"
+        self.stdio_config = stdio_config or {}
+        self.server_id = server_id
+        self._enabled_lookup = enabled_lookup
+
+        self.session: Optional[ClientSession] = None
+        self.tools: Optional[List[Any]] = None
+        self.connected = False
+        self.exit_stack: Optional[AsyncExitStack] = None
+
+        # timeouts (seconds)
+        self.init_timeout_seconds = 30
+        self.list_timeout_seconds = 30
+        self.call_timeout_seconds = 90
+
+        # dedicated event loop in background thread
+        self.event_loop = asyncio.new_event_loop()
+        t = threading.Thread(target=self._loop_runner, args=(self.event_loop,), daemon=True)
+        t.start()
+        self._loop_thread = t
+
+        self._stdio_errlog_file = None
+        self._manager_task: Optional[asyncio.Task] = None
+        self._disconnect_event: Optional[asyncio.Event] = None
+        self._connect_ready_future: Optional[asyncio.Future] = None
+        self._last_error: Optional[str] = None
+        self._resolved_stdio_config: Optional[Dict[str, Any]] = None
+
+        # tool availability cache
+        self.tools_refresh_interval = max(int(tools_refresh_interval), 5)
+        self._tool_cache: List[Dict[str, Any]] = []
+        self._tool_cache_timestamp: float = 0.0
+        self._tools_lock = threading.RLock()
+        self._tools_refresh_thread: Optional[threading.Thread] = None
+        self._tools_stop_event = threading.Event()
+
+    @staticmethod
+    def _loop_runner(loop: asyncio.AbstractEventLoop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    def set_enabled_lookup(self, lookup: Optional[Callable[[str], bool]]) -> None:
+        """Allow callers to update the enabled-state resolver at runtime."""
+        self._enabled_lookup = lookup
+
+    def _clone_tool_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        clone = dict(entry)
+        if isinstance(clone.get("inputSchema"), dict):
+            clone["inputSchema"] = dict(clone["inputSchema"])
+        return clone
+
+    def _sanitize_tools(self, tools: Any) -> List[Dict[str, Any]]:
+        sanitized: List[Dict[str, Any]] = []
+        if not tools:
+            return sanitized
+
+        # Unwrap known container shapes (dict/object with .tools etc.)
+        container = tools
+        for _ in range(3):
+            if container is None:
+                break
+            if isinstance(container, dict):
+                inner = container.get("tools")
+                if inner is not None:
+                    container = inner
+                    continue
+            if hasattr(container, "tools"):
+                try:
+                    inner = getattr(container, "tools")
+                except Exception:
+                    inner = None
+                if inner is not None:
+                    container = inner
+                    continue
+            break
+
+        # Handle responses expressed as iterable of key/value pairs
+        try:
+            iterable = list(container)
+        except TypeError:
+            iterable = [container]
+        else:
+            if iterable and all(isinstance(item, tuple) and len(item) == 2 for item in iterable):
+                for key, value in iterable:
+                    if key == "tools":
+                        return self._sanitize_tools(value)
+
+        for tool in iterable:
+            try:
+                if hasattr(tool, "name"):
+                    name = str(getattr(tool, "name", "")).strip()
+                    if not name:
+                        continue
+                    description = str(getattr(tool, "description", "") or "")
+                    input_schema = getattr(tool, "inputSchema", {})
+                    if not isinstance(input_schema, dict):
+                        input_schema = {}
+                    sanitized.append({
+                        "name": name,
+                        "description": description,
+                        "inputSchema": dict(input_schema),
+                    })
+                elif isinstance(tool, dict) and tool.get("name"):
+                    name = str(tool.get("name", "")).strip()
+                    if not name:
+                        continue
+                    entry = {
+                        "name": name,
+                        "description": str(tool.get("description", "") or ""),
+                        "inputSchema": dict(tool.get("inputSchema") or {})
+                        if isinstance(tool.get("inputSchema"), dict) else {},
+                    }
+                    if "enabled" in tool:
+                        entry["enabled"] = bool(tool["enabled"])
+                    sanitized.append(entry)
+                else:
+                    # Skip placeholder tuples or metadata fragments
+                    if isinstance(tool, tuple) and len(tool) == 2 and isinstance(tool[0], str):
+                        continue
+                    name = str(tool).strip()
+                    if not name:
+                        continue
+                    sanitized.append({
+                        "name": name,
+                        "description": "",
+                        "inputSchema": {},
+                    })
+            except Exception as exc:
+                logger.debug(f"Failed to normalize MCP tool definition {tool!r}: {exc}")
+        return sanitized
+
+    def _apply_tool_cache_update(self, tools: List[Dict[str, Any]]) -> None:
+        with self._tools_lock:
+            cloned = [self._clone_tool_entry(entry) for entry in tools]
+            self._tool_cache = cloned
+            self._tool_cache_timestamp = time.time()
+            self.tools = [self._clone_tool_entry(entry) for entry in cloned]  # backward compatibility
+        if self.server_id is not None:
+            tool_registry.set_server_tools(self.server_id, tools, self._enabled_lookup)
+
+    def _get_tool_cache_copy(self) -> List[Dict[str, Any]]:
+        with self._tools_lock:
+            return [self._clone_tool_entry(entry) for entry in self._tool_cache]
+
+    def get_cached_tools(self) -> List[Dict[str, Any]]:
+        """Expose a copy of the cached tool metadata without refreshing remotely."""
+        return self._get_tool_cache_copy()
+
+    def _ensure_refresh_worker(self) -> None:
+        if self.tools_refresh_interval <= 0:
+            return
+        with self._tools_lock:
+            if self._tools_refresh_thread and self._tools_refresh_thread.is_alive():
+                return
+            self._tools_stop_event.clear()
+            thread = threading.Thread(
+                target=self._refresh_loop,
+                name=f"mcp-tools-refresh-{self.server_id or 'unknown'}",
+                daemon=True,
+            )
+            self._tools_refresh_thread = thread
+            thread.start()
+
+    def _stop_refresh_worker(self) -> None:
+        thread = None
+        with self._tools_lock:
+            thread = self._tools_refresh_thread
+            if not thread:
+                self._tools_stop_event.set()
+                return
+            self._tools_stop_event.set()
+        if thread.is_alive():
+            thread.join(timeout=self.tools_refresh_interval)
+        with self._tools_lock:
+            self._tools_refresh_thread = None
+            self._tools_stop_event = threading.Event()
+
+    def _refresh_loop(self) -> None:
+        while not self._tools_stop_event.wait(self.tools_refresh_interval):
+            if not self.connected:
+                continue
+            try:
+                self._refresh_tools()
+            except Exception as exc:
+                logger.debug(f"MCP tool refresh failed: {exc}")
+
+    async def _refresh_tools_async(self) -> bool:
+        if not self.session:
+            return False
+        tools_resp = await _await_or_value(self.session.list_tools(), self.list_timeout_seconds)
+        sanitized = self._sanitize_tools(tools_resp)
+        if sanitized or self._tool_cache:
+            self._apply_tool_cache_update(sanitized)
+        return True
+
+    def _refresh_tools(self) -> bool:
+        try:
+            future = asyncio.run_coroutine_threadsafe(self._refresh_tools_async(), self.event_loop)
+            return future.result(timeout=self.list_timeout_seconds + 5)
+        except Exception as exc:
+            logger.debug(f"Failed to refresh MCP tool cache: {exc}")
+            return False
+
+    def _clear_tool_cache(self) -> None:
+        with self._tools_lock:
+            self._tool_cache = []
+            self._tool_cache_timestamp = 0.0
+            self.tools = None
+        if self.server_id is not None:
+            tool_registry.mark_all_unavailable(self.server_id)
+
+    def _resolve_stdio_launch_config(self) -> Dict[str, Any]:
+        cfg = self.stdio_config or {}
+        runtime_root = _runtime_root_dir()
+        command = cfg.get("command") or sys.executable
+        args = list(cfg.get("args") or [])
+        env = cfg.get("env") or None
+        cwd = cfg.get("cwd") or None
+        if cwd and not os.path.isabs(cwd):
+            cwd = os.path.abspath(os.path.join(runtime_root, cwd))
+
+        packaged_launch = _resolve_packaged_stdio_runner(runtime_root, command, args, cwd)
+        if packaged_launch is not None:
+            command, args, cwd = packaged_launch
+        else:
+            if _is_python_command(command):
+                # Source-mode MCP servers must use the same interpreter as Fay.
+                # Resolving plain "python" through PATH can silently launch an
+                # unrelated Conda installation without Fay's MCP dependencies.
+                if not getattr(sys, "frozen", False) and not os.path.isabs(str(command)):
+                    command = sys.executable
+                else:
+                    resolved_python = _resolve_python_command(command)
+                    if resolved_python:
+                        command = resolved_python
+                    elif getattr(sys, "frozen", False):
+                        logger.warning("System Python not found for MCP stdio command: %s", command)
+                    else:
+                        command = sys.executable
+            else:
+                resolved_command = _resolve_existing_path(command, cwd, runtime_root)
+                if resolved_command:
+                    command = resolved_command
+
+        if not (isinstance(command, str) and os.path.basename(command).lower() == os.path.basename(sys.executable).lower() and args[:1] == ["--mcp-stdio-runner"]):
+            args = _resolve_stdio_arg_paths(args, cwd, runtime_root)
+            env = _inject_packaged_python_env(env, runtime_root, command)
+
+        logger.info("Resolved MCP stdio launch command=%s cwd=%s args=%s", command, cwd or "", args)
+
+        resolved_cfg = {
+            "command": command,
+            "args": args,
+            "env": env,
+            "cwd": cwd,
+        }
+        self._resolved_stdio_config = resolved_cfg
+        return resolved_cfg
+
+    async def _connect_async(self) -> Tuple[bool, Any]:
+        if self.connected and self.session:
+            return True, self.get_cached_tools()
+
+        if self._manager_task and self._manager_task.done():
+            try:
+                await self._manager_task
+            except Exception:
+                pass
+            self._manager_task = None
+
+        if self._manager_task:
+            if self._connect_ready_future:
+                try:
+                    return await self._connect_ready_future
+                except Exception as exc:
+                    logger.error(f"Unexpected connection error during startup wait: {exc}")
+                    return False, str(exc)
+            await self._manager_task
+            if self.connected and self.session:
+                return True, self.get_cached_tools()
+            return False, self._last_error or "MCP server connection failed"
+
+        loop = asyncio.get_running_loop()
+        ready_future: asyncio.Future = loop.create_future()
+        disconnect_event = asyncio.Event()
+        self._disconnect_event = disconnect_event
+        self._connect_ready_future = ready_future
+        self._last_error = None
+        self._manager_task = loop.create_task(self._run_session(ready_future, disconnect_event))
+
+        try:
+            result = await ready_future
+        finally:
+            self._connect_ready_future = None
+        return result
+
+    async def _run_session(self, ready_future: asyncio.Future, disconnect_event: asyncio.Event) -> None:
+        stdio_errlog = None
+        stack = AsyncExitStack()
+        self.exit_stack = stack
+        try:
+            async with stack:
+                if self.transport == "stdio":
+                    if not HAS_STDIO:
+                        message = "Missing stdio-capable MCP client, run: pip install -U mcp"
+                        self._last_error = message
+                        if not ready_future.done():
+                            ready_future.set_result((False, message))
+                        return
+                    cfg = self._resolve_stdio_launch_config()
+                    command = cfg.get("command") or sys.executable
+                    args = list(cfg.get("args") or [])
+                    env = cfg.get("env") or None
+                    cwd = cfg.get("cwd") or None
+
+                    try:
+                        log_dir = os.path.join(os.getcwd(), 'logs')
+                        os.makedirs(log_dir, exist_ok=True)
+                        base = os.path.basename(str(command))
+                        log_path = os.path.join(log_dir, f"mcp_stdio_{base}.log")
+                        stdio_errlog = open(log_path, 'a', encoding='utf-8')
+                    except Exception:
+                        stdio_errlog = None
+
+                    self._stdio_errlog_file = stdio_errlog
+                    params = StdioServerParameters(command=command, args=args, env=env, cwd=cwd)
+                    read_stream, write_stream = await stack.enter_async_context(
+                        stdio_client(params, errlog=stdio_errlog or sys.stderr)
+                    )
+                else:
+                    headers = {}
+                    if self.api_key:
+                        headers['Authorization'] = f'Bearer {self.api_key}'
+                    read_stream, write_stream = await stack.enter_async_context(
+                        sse_client(self.server_url, headers=headers)
+                    )
+
+                self.session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
+                try:
+                    await _await_or_value(getattr(self.session, 'initialize', lambda: None)(), self.init_timeout_seconds)
+                except Exception:
+                    pass
+
+                tools_resp = await _await_or_value(self.session.list_tools(), self.list_timeout_seconds)
+                sanitized_tools = self._sanitize_tools(tools_resp)
+                self._apply_tool_cache_update(sanitized_tools)
+                self.connected = True
+                if not ready_future.done():
+                    ready_future.set_result((True, self.get_cached_tools()))
+
+                self._ensure_refresh_worker()
+
+                await disconnect_event.wait()
+
+        except asyncio.TimeoutError as e:
+            self._last_error = f"Connection or tool discovery timed out: {e}"
+            if not ready_future.done():
+                ready_future.set_result((False, self._last_error))
+        except Exception as e:
+            self._last_error = str(e)
+            logger.error(f"Error while handling connection lifecycle: {e}")
+            if not ready_future.done():
+                ready_future.set_result((False, self._last_error))
+        finally:
+            if stdio_errlog:
+                try:
+                    stdio_errlog.close()
+                except Exception:
+                    pass
+            if self._stdio_errlog_file and self._stdio_errlog_file is not stdio_errlog:
+                try:
+                    self._stdio_errlog_file.close()
+                except Exception:
+                    pass
+            self._stdio_errlog_file = None
+            self._resolved_stdio_config = None
+            self._stop_refresh_worker()
+            self.connected = False
+            self.session = None
+            self._clear_tool_cache()
+            if not ready_future.done():
+                ready_future.set_result((False, self._last_error or "MCP server connection failed"))
+            if self._disconnect_event is disconnect_event:
+                self._disconnect_event = None
+            self._manager_task = None
+            self.exit_stack = None
+
+    def connect(self):
+        fut = asyncio.run_coroutine_threadsafe(self._connect_async(), self.event_loop)
+        return fut.result(timeout=self.init_timeout_seconds + self.list_timeout_seconds + 10)
+
+    async def _call_tool_async(self, method: str, params=None):
+        if not self.connected or not self.session:
+            return False, "未连接到MCP服务器"
+        try:
+            params = params or {}
+            result = await _await_or_value(self.session.call_tool(method, params), self.call_timeout_seconds)
+            return True, result
+        except asyncio.TimeoutError:
+            return False, f"调用工具超时({self.call_timeout_seconds}s)"
+        except Exception as e:
+            logger.exception("调用工具失败异常堆栈")
+            return False, f"调用工具失败: {type(e).__name__}: {e}"
+
+    def call_tool(self, method, params=None):
+        future = asyncio.run_coroutine_threadsafe(self._call_tool_async(method, params), self.event_loop)
+        return future.result(timeout=self.call_timeout_seconds + 5)
+
+    def list_tools(self, refresh: bool = False):
+        if not self.connected:
+            success, tools = self.connect()
+            if not success:
+                return []
+            return tools or []
+        if refresh:
+            self._refresh_tools()
+        return self.get_cached_tools()
+
+    async def _list_resources_async(self) -> List[Dict[str, Any]]:
+        if not self.session:
+            return []
+        try:
+            resp = await _await_or_value(self.session.list_resources(), self.list_timeout_seconds)
+        except Exception as exc:
+            logger.debug(f"list_resources failed: {exc}")
+            return []
+        resources: List[Dict[str, Any]] = []
+        items = resp if isinstance(resp, list) else getattr(resp, "resources", None) or []
+        for item in items:
+            if isinstance(item, dict):
+                resources.append(item)
+            elif hasattr(item, "uri"):
+                resources.append({
+                    "uri": str(getattr(item, "uri", "")),
+                    "name": str(getattr(item, "name", "")),
+                    "description": str(getattr(item, "description", "") or ""),
+                    "mimeType": str(getattr(item, "mimeType", "") or ""),
+                })
+        return resources
+
+    def list_resources(self) -> List[Dict[str, Any]]:
+        if not self.connected:
+            return []
+        try:
+            future = asyncio.run_coroutine_threadsafe(self._list_resources_async(), self.event_loop)
+            return future.result(timeout=self.list_timeout_seconds + 5)
+        except Exception as exc:
+            logger.debug(f"list_resources sync wrapper failed: {exc}")
+            return []
+
+    async def _read_resource_async(self, uri: str) -> Optional[str]:
+        if not self.session:
+            return None
+        try:
+            resp = await _await_or_value(self.session.read_resource(uri), self.call_timeout_seconds)
+        except Exception as exc:
+            logger.debug(f"read_resource({uri}) failed: {exc}")
+            return None
+        contents = resp if isinstance(resp, list) else getattr(resp, "contents", None) or []
+        texts: List[str] = []
+        for item in contents:
+            if isinstance(item, dict):
+                text = item.get("text")
+            else:
+                text = getattr(item, "text", None)
+            if text:
+                texts.append(str(text))
+        return "\n".join(texts) if texts else None
+
+    def read_resource(self, uri: str) -> Optional[str]:
+        if not self.connected:
+            return None
+        try:
+            future = asyncio.run_coroutine_threadsafe(self._read_resource_async(uri), self.event_loop)
+            return future.result(timeout=self.call_timeout_seconds + 5)
+        except Exception as exc:
+            logger.debug(f"read_resource sync wrapper failed: {exc}")
+            return None
+
+    async def _disconnect_async(self) -> bool:
+        task = self._manager_task
+        event = self._disconnect_event
+        if event and not event.is_set():
+            event.set()
+        if task:
+            try:
+                await task
+            except Exception as e:
+                logger.error(f"Error while closing connection: {e}")
+                return False
+        return True
+
+    def _kill_stdio_process(self) -> None:
+        """强制终止 stdio 子进程，确保子进程被完全清理"""
+        if self.transport != "stdio":
+            return
+
+        cfg = self._resolved_stdio_config or self.stdio_config or {}
+        command = cfg.get("command") or ""
+        args = cfg.get("args") or []
+
+        # 构建用于匹配进程的关键字
+        if args:
+            # 使用第一个参数（通常是脚本路径）作为匹配关键字
+            match_pattern = str(args[0]) if args else command
+        else:
+            match_pattern = command
+
+        if not match_pattern:
+            return
+
+        try:
+            if sys.platform == "win32":
+                # Windows: 使用 wmic 查找进程并用 taskkill 终止
+                # 查找包含匹配模式的 python 进程
+                result = subprocess.run(
+                    ["wmic", "process", "where",
+                     f"commandline like '%{match_pattern.replace(os.sep, os.sep + os.sep)}%'",
+                     "get", "processid"],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.strip().split('\n'):
+                        line = line.strip()
+                        if line.isdigit():
+                            pid = int(line)
+                            try:
+                                subprocess.run(
+                                    ["taskkill", "/F", "/PID", str(pid)],
+                                    capture_output=True, timeout=5
+                                )
+                                logger.info(f"强制终止 stdio 子进程 PID: {pid}")
+                            except Exception as e:
+                                logger.debug(f"终止进程 {pid} 失败: {e}")
+            else:
+                # Unix: 使用 pkill 终止
+                try:
+                    subprocess.run(
+                        ["pkill", "-f", match_pattern],
+                        capture_output=True, timeout=5
+                    )
+                    logger.info(f"强制终止匹配 '{match_pattern}' 的进程")
+                except Exception as e:
+                    logger.debug(f"pkill 执行失败: {e}")
+        except Exception as e:
+            logger.debug(f"强制终止 stdio 子进程失败: {e}")
+
+    def disconnect(self):
+        if not self._manager_task and not self._disconnect_event:
+            return True
+        try:
+            fut = asyncio.run_coroutine_threadsafe(self._disconnect_async(), self.event_loop)
+            fut.result(timeout=5)
+        except Exception as e:
+            logger.error(f"Error while closing connection: {e}")
+
+        # 确保 stdio 子进程被终止
+        self._kill_stdio_process()
+        return True
+

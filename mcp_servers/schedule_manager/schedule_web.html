@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fay日程管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 1px solid #eee;
+        }
+
+        .add-schedule-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .add-schedule-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .filter-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .filter-group {
+            margin-bottom: 15px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .schedule-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .schedule-card.today {
+            border-left-color: #ff6b6b;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.05) 0%, rgba(255, 107, 107, 0.02) 100%);
+        }
+
+        .schedule-card.completed {
+            opacity: 0.6;
+            border-left-color: #51cf66;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .card-time {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .card-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .status-completed {
+            background: rgba(81, 207, 102, 0.1);
+            color: #51cf66;
+        }
+
+        .card-content {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .card-repeat {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 15px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-complete {
+            background: #51cf66;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .repeat-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .day-btn {
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .day-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            padding: 12px 24px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover, .btn-secondary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #ff6b6b;
+        }
+
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: #51cf66;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 2000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: #ff6b6b;
+        }
+
+        .toast.warning {
+            background: #ffd43b;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: 20px;
+            }
+
+            .schedule-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Fay日程管理</h1>
+            <p>智能助手的日程安排与提醒系统</p>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <button class="add-schedule-btn" onclick="showAddModal()">
+                    ➕ 添加新日程
+                </button>
+
+                <div class="filter-section">
+                    <div class="filter-title">筛选条件</div>
+                    
+                    <div class="filter-group">
+                        <label>状态</label>
+                        <select class="filter-input" id="statusFilter" onchange="filterSchedules()">
+                            <option value="all">全部</option>
+                            <option value="active">活跃</option>
+                            <option value="completed">已完成</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>搜索关键词</label>
+                        <input type="text" class="filter-input" id="searchInput" placeholder="搜索标题或内容..." oninput="filterSchedules()">
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div id="scheduleContainer" class="schedule-grid">
+                    <div class="loading">正在加载日程...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑日程模态框 -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">添加新日程</h2>
+                <button class="close-btn" onclick="hideModal()">&times;</button>
+            </div>
+
+            <form id="scheduleForm">
+                <input type="hidden" id="scheduleId">
+                
+                <div class="form-group">
+                    <label class="form-label">日程标题 *</label>
+                    <input type="text" id="scheduleTitle" class="form-input" placeholder="请输入日程标题" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">详细内容</label>
+                    <textarea id="scheduleContent" class="form-input form-textarea" placeholder="请输入详细内容..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">执行时间 *</label>
+                    <input type="time" id="scheduleTime" class="form-input" required>
+                    <small style="color: #999; margin-top: 8px; display: block;">单次任务在最近的该时间执行，重复任务在对应日期的该时间执行</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">重复设置</label>
+                    <div class="repeat-days">
+                        <button type="button" class="day-btn" data-day="0" onclick="toggleDay(this)">一</button>
+                        <button type="button" class="day-btn" data-day="1" onclick="toggleDay(this)">二</button>
+                        <button type="button" class="day-btn" data-day="2" onclick="toggleDay(this)">三</button>
+                        <button type="button" class="day-btn" data-day="3" onclick="toggleDay(this)">四</button>
+                        <button type="button" class="day-btn" data-day="4" onclick="toggleDay(this)">五</button>
+                        <button type="button" class="day-btn" data-day="5" onclick="toggleDay(this)">六</button>
+                        <button type="button" class="day-btn" data-day="6" onclick="toggleDay(this)">日</button>
+                    </div>
+                    <small style="color: #999; margin-top: 8px; display: block;">选择重复的日期，不选择表示只执行一次</small>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="hideModal()">取消</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let schedules = [];
+        let currentEditId = null;
+
+        // Toast提示函数
+        function showToast(message, type = 'success') {
+            // 移除已存在的toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // 创建新的toast
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // 显示toast
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSchedules();
+            
+            // 设置表单提交事件
+            document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveSchedule();
+            });
+        });
+
+        // 加载日程列表
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedule/list');
+                if (!response.ok) {
+                    throw new Error('获取日程列表失败');
+                }
+                const data = await response.json();
+                schedules = data.schedules || [];
+                renderSchedules();
+            } catch (error) {
+                console.error('加载日程失败:', error);
+                document.getElementById('scheduleContainer').innerHTML = 
+                    '<div class="error">加载日程失败，请刷新页面重试</div>';
+            }
+        }
+
+        // 渲染日程列表
+        function renderSchedules(filteredSchedules = null) {
+            const container = document.getElementById('scheduleContainer');
+            const schedulesToRender = filteredSchedules || schedules;
+
+            if (schedulesToRender.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>暂无日程</h3>
+                        <p>点击"添加新日程"开始创建您的第一个日程</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = schedulesToRender.map(schedule => {
+                const isCompleted = schedule.status === 'completed';
+                const repeatText = getRepeatText(schedule.repeat_rule);
+
+                return `
+                    <div class="schedule-card ${isCompleted ? 'completed' : ''}"
+                         onclick="editSchedule(${schedule.id})">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">${schedule.title}</div>
+                                <div class="card-time">⏰ ${schedule.schedule_time}</div>
+                            </div>
+                            <div class="card-status status-${schedule.status}">
+                                ${schedule.status === 'active' ? '活跃' : '已完成'}
+                            </div>
+                        </div>
+                        <div class="card-content">${schedule.content}</div>
+                        <div class="card-repeat">${repeatText}</div>
+                        <div class="card-actions" onclick="event.stopPropagation()">
+                            <button class="btn btn-edit" onclick="editSchedule(${schedule.id})">编辑</button>
+                            ${schedule.status === 'active' && schedule.repeat_rule === '0000000' ?
+                                `<button class="btn btn-complete" onclick="completeSchedule(${schedule.id})">完成</button>` : ''
+                            }
+                            <button class="btn btn-delete" onclick="deleteSchedule(${schedule.id})">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 筛选日程
+        function filterSchedules() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = schedules.filter(schedule => {
+                // 状态筛选
+                if (statusFilter !== 'all' && schedule.status !== statusFilter) {
+                    return false;
+                }
+
+                // 搜索筛选
+                if (searchInput &&
+                    !schedule.title.toLowerCase().includes(searchInput) &&
+                    !schedule.content.toLowerCase().includes(searchInput)) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            renderSchedules(filtered);
+        }
+
+        // 显示添加模态框
+        function showAddModal() {
+            document.getElementById('modalTitle').textContent = '添加新日程';
+            document.getElementById('scheduleForm').reset();
+            document.getElementById('scheduleId').value = '';
+            currentEditId = null;
+            
+            // 清除重复日期选择
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById('scheduleModal').style.display = 'block';
+        }
+
+        // 编辑日程
+        function editSchedule(id) {
+            const schedule = schedules.find(s => s.id === id);
+            if (!schedule) return;
+
+            document.getElementById('modalTitle').textContent = '编辑日程';
+            document.getElementById('scheduleId').value = schedule.id;
+            document.getElementById('scheduleTitle').value = schedule.title;
+            document.getElementById('scheduleContent').value = schedule.content;
+
+            // 时间格式为 HH:MM，直接设置
+            document.getElementById('scheduleTime').value = schedule.schedule_time;
+
+            // 设置重复日期
+            document.querySelectorAll('.day-btn').forEach((btn, index) => {
+                if (schedule.repeat_rule[index] === '1') {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            currentEditId = id;
+            document.getElementById('scheduleModal').style.display = 'block';
+        }
+
+        // 保存日程
+        async function saveSchedule() {
+            const id = document.getElementById('scheduleId').value;
+            const title = document.getElementById('scheduleTitle').value;
+            const content = document.getElementById('scheduleContent').value;
+            const scheduleTime = document.getElementById('scheduleTime').value;
+
+            // 获取重复规则
+            let repeatRule = '0000000';
+            document.querySelectorAll('.day-btn').forEach((btn, index) => {
+                if (btn.classList.contains('active')) {
+                    repeatRule = repeatRule.substring(0, index) + '1' + repeatRule.substring(index + 1);
+                }
+            });
+
+            const scheduleData = {
+                title,
+                content,
+                schedule_time: scheduleTime,  // 已经是 HH:MM 格式
+                repeat_rule: repeatRule
+            };
+
+            try {
+                let response;
+                if (id) {
+                    // 更新
+                    response = await fetch(`/api/schedule/update/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(scheduleData)
+                    });
+                } else {
+                    // 创建
+                    response = await fetch('/api/schedule/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(scheduleData)
+                    });
+                }
+
+                if (!response.ok) {
+                    throw new Error('保存日程失败');
+                }
+
+                hideModal();
+                loadSchedules();
+                showToast('日程保存成功');
+            } catch (error) {
+                console.error('保存日程失败:', error);
+                alert('保存日程失败，请重试');
+            }
+        }
+
+        // 完成日程（删除）
+        async function completeSchedule(id) {
+            if (!confirm('确定要完成此日程吗？完成后将自动删除。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/schedule/complete/${id}`, {
+                    method: 'PUT'
+                });
+
+                if (!response.ok) {
+                    throw new Error('完成日程失败');
+                }
+
+                loadSchedules();
+                showToast('日程已完成并删除');
+            } catch (error) {
+                console.error('完成日程失败:', error);
+                alert('操作失败，请重试');
+            }
+        }
+
+        // 删除日程
+        async function deleteSchedule(id) {
+            if (!confirm('确定要删除此日程吗？删除后无法恢复。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/schedule/delete/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`删除日程失败，状态码: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    // 如果删除的是当前正在编辑的日程，关闭模态框
+                    const currentEditId = document.getElementById('scheduleId').value;
+                    if (currentEditId && parseInt(currentEditId) === id) {
+                        hideModal();
+                    }
+                    
+                    // 重新加载日程列表
+                    loadSchedules();
+                    
+                    // 显示成功提示
+                    showToast('日程已成功删除');
+                } else {
+                    throw new Error(data.message || '删除失败');
+                }
+            } catch (error) {
+                console.error('删除日程失败:', error);
+                alert('删除失败：' + error.message);
+            }
+        }
+
+        // 隐藏模态框
+        function hideModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+        // 切换重复日期
+        function toggleDay(btn) {
+            btn.classList.toggle('active');
+        }
+
+        // 获取重复规则文本
+        function getRepeatText(repeatRule) {
+            if (repeatRule === '0000000') {
+                return '单次执行';
+            }
+
+            const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            const repeatDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (repeatRule[i] === '1') {
+                    repeatDays.push(days[i]);
+                }
+            }
+
+            if (repeatDays.length === 7) {
+                return '每日重复';
+            } else if (repeatDays.length === 5 && !repeatRule.includes('1', 5)) {
+                return '工作日重复';
+            } else {
+                return '重复: ' + repeatDays.join(', ');
+            }
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('scheduleModal');
+            if (event.target === modal) {
+                hideModal();
+            }
+        }
+    </script>
+</body>
+</html>

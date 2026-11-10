@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-labelledby="title">
+  <title id="title">原创演示箱包插画</title>
+  <rect width="480" height="360" fill="#f7f4f0"/>
+  <circle cx="240" cy="166" r="122" fill="#ece5df"/>
+  <path d="M153 140h174l18 143H135z" fill="#8c796b"/>
+  <path d="M190 143c0-39 17-61 50-61s50 22 50 61" fill="none" stroke="#65564c" stroke-width="13"/>
+  <path d="M162 158h156" stroke="#b7a493" stroke-width="4"/>
+  <circle cx="240" cy="190" r="5" fill="#e9dfd4"/>
+  <text x="240" y="325" fill="#77706c" font-family="sans-serif" font-size="15" text-anchor="middle">原创虚构商品示意图</text>
+</svg>

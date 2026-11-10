@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    {% set customer_avatar_url = url_for('static', filename=customer_avatar_asset|default('images/xiaoru-avatar.svg')) %}
+    <script>window.FAY_CUSTOMER_AVATAR_URL = {{ customer_avatar_url|tojson }};</script>
+    <script src="{{ url_for('static',filename='js/security.js') }}?v=20261019"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小如的衣橱 · 穿搭客服</title>
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/index.css') }}?v={{ cache_bust }}" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/responsive.css') }}?v={{ cache_bust }}" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/storefront.css') }}?v={{ cache_bust }}" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/styling.css') }}?v={{ cache_bust }}" />
+    <link rel="icon" href="{{ url_for('static',filename='images/favicon.ico') }}" type="image/x-icon">
+    <script src="{{ url_for('static',filename='js/vue.js') }}"></script>
+    <script src="{{ url_for('static',filename='js/element-ui.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/element/theme-chalk.css') }}" />
+    <script>
+      // Older embedded browsers/WebViews may miss `.at()`, but marked v15 uses it.
+      (function () {
+        function atPolyfill(index) {
+          var length = this.length >>> 0;
+          var relativeIndex = Number(index) || 0;
+          if (relativeIndex < 0) {
+            relativeIndex += length;
+          }
+          if (relativeIndex < 0 || relativeIndex >= length) {
+            return undefined;
+          }
+          return this[relativeIndex];
+        }
+
+        if (!Array.prototype.at) {
+          Object.defineProperty(Array.prototype, 'at', {
+            value: atPolyfill,
+            writable: true,
+            configurable: true
+          });
+        }
+
+        if (!String.prototype.at) {
+          Object.defineProperty(String.prototype, 'at', {
+            value: atPolyfill,
+            writable: true,
+            configurable: true
+          });
+        }
+      })();
+    </script>
+    <script src="{{ url_for('static',filename='js/marked.min.js') }}?v={{ cache_bust }}"></script>
+    <script src="{{ url_for('static',filename='js/html2canvas.min.js') }}?v={{ cache_bust }}"></script>
+    {% if live2d_assets_available %}
+    <script src="{{ url_for('static',filename='live2d/vendor/live2dcubismcore.min.js') }}" defer></script>
+    <script src="{{ url_for('static',filename='live2d/vendor/pixi.min.js') }}" defer></script>
+    <script src="{{ url_for('static',filename='live2d/vendor/live2dcubismframework.js') }}" defer></script>
+    <script src="{{ url_for('static',filename='live2d/vendor/live2dcubismpixi.js') }}" defer></script>
+    <script src="{{ url_for('static',filename='live2d/vendor/l2d.js') }}" defer></script>
+    <script src="{{ url_for('static',filename='js/live2d-avatar.js') }}?v={{ cache_bust }}" defer></script>
+    {% endif %}
+    <script src="{{ url_for('static',filename='js/styling.js') }}?v={{ cache_bust }}" defer></script>
+    <script src="{{ url_for('static',filename='js/index.js') }}?v={{ cache_bust }}" defer></script>
+    <script src="{{ url_for('static',filename='js/script.js') }}?v={{ cache_bust }}" defer></script>
+  </head>
+  <body class="page-chat page-storefront">
+    <div id="app" class="main_bg">
+      <div class="main_right">
+        <div class="top_info storefront-global-header">
+          <div class="storefront-brand-block">
+            <span class="storefront-brand-mark">如</span>
+            <span class="storefront-brand-copy">
+              <strong>小如的衣橱</strong>
+              <small>穿搭顾问 · 数字人客服</small>
+            </span>
+            <span class="storefront-demo-badge">演示商城 · 非真实交易</span>
+          </div>
+          <div class="storefront-global-actions">
+            <button class="storefront-source-button" type="button" @click="sourcesDialogVisible = true"><i class="el-icon-document" aria-hidden="true"></i>规则来源</button>
+            <a v-if="storeMeta.reference_url" class="storefront-reference-link" :href="storeMeta.reference_url" target="_blank" rel="noopener noreferrer"><i class="el-icon-link" aria-hidden="true"></i>商品来源</a>
+          </div>
+          <div class="storefront-mobile-switch" aria-label="切换商城、数字人与客服">
+            <button type="button" :class="{'active': mobileWorkspaceTab === 'store'}" :aria-pressed="mobileWorkspaceTab === 'store'" @click="mobileWorkspaceTab = 'store'">商城</button>
+            <button type="button" :class="{'active': mobileWorkspaceTab === 'avatar'}" :aria-pressed="mobileWorkspaceTab === 'avatar'" @click="mobileWorkspaceTab = 'avatar'">数字人</button>
+            <button type="button" :class="{'active': mobileWorkspaceTab === 'service'}" :aria-pressed="mobileWorkspaceTab === 'service'" @click="mobileWorkspaceTab = 'service'">客服</button>
+          </div>
+        </div>
+
+        <div class="conversation-workspace commerce-workspace">
+          <main class="storefront-panel" :class="{'mobile-active': mobileWorkspaceTab === 'store'}">
+            <div class="storefront-toolbar">
+              <div>
+                <div class="storefront-section-kicker">小如精选</div>
+                <h1>发现适合你的穿搭</h1>
+              </div>
+              <label class="storefront-search">
+                <span class="el-icon-search" aria-hidden="true"></span>
+                <input v-model.trim="productKeyword" type="search" placeholder="搜索商品名称、编号或卖点" aria-label="搜索商品">
+              </label>
+            </div>
+
+            <section class="store-account-bar" aria-label="体验账户信息">
+              <div class="store-account-balance">
+                <span>体验余额</span>
+                <strong>¥[[formatMoney(storeAccount.balance)]]</strong>
+              </div>
+              <div class="store-account-route">
+                <span><i class="el-icon-office-building" aria-hidden="true"></i> [[storeAccount.store_address || '浙江省杭州市']]</span>
+                <b aria-hidden="true">→</b>
+                <span><i class="el-icon-location-outline" aria-hidden="true"></i> [[storeAccount.customer_address || '河南省郑州市']]</span>
+              </div>
+              <small>订单、物流和退款均在当前业务沙盒内流转</small>
+            </section>
+
+            <nav class="storefront-tabs" aria-label="商城功能">
+              <button v-for="tab in storefrontTabs" :key="tab.key" type="button" :class="{'active': storeActiveTab === tab.key}" :aria-pressed="storeActiveTab === tab.key" @click="switchStoreTab(tab.key)">
+                <i class="storefront-tab-icon" :class="{'el-icon-shopping-bag-2': tab.key === 'products', 'el-icon-magic-stick': tab.key === 'styling', 'el-icon-tickets': tab.key === 'orders', 'el-icon-truck': tab.key === 'logistics', 'el-icon-refresh-left': tab.key === 'afterSales'}" aria-hidden="true"></i>
+                <span>[[tab.label]]</span>
+                <em v-if="tab.key === 'orders' && visibleOrders.length">[[visibleOrders.length]]</em>
+              </button>
+            </nav>
+
+            <div class="storefront-scroll" :class="{'is-loading': storeLoading}">
+              <div v-if="storeLoading" class="storefront-loading">
+                <span class="storefront-spinner"></span>
+                <span>正在加载商城数据…</span>
+              </div>
+
+              {% include 'styling.html' %}
+
+              <section v-show="!storeLoading && storeActiveTab === 'products'" class="storefront-view storefront-products-view">
+                <div class="style-discovery">
+                  <div><strong>今天穿什么？让小如帮你挑</strong><small>说说场景和预算，或发张照片，小如会陪你一起搭配</small></div>
+                  <button type="button" class="store-btn store-btn-primary" @click="sendCommercePrompt('帮我规划一套穿搭')">问小如怎么搭 <span aria-hidden="true">↗</span></button>
+                </div>
+                <div v-if="styleCompareIds.length" class="style-compare-bar">
+                  <span>已选 [[styleCompareIds.length]] 件比较</span>
+                  <button type="button" :disabled="styleCompareIds.length < 2" @click="compareStyleProducts">比较商品</button>
+                  <button type="button" @click="styleCompareIds = []">清空</button>
+                </div>
+                <div class="storefront-notice">
+                  <span>数据说明</span>
+                  [[storeMeta.dataset_label || '虚构演示商品']]；价格、规格和库存仅用于本地流程演示。
+                </div>
+                <div class="storefront-category-row">
+                  <button type="button" :class="{'active': productCategory === '全部'}" :aria-pressed="productCategory === '全部'" @click="productCategory = '全部'">全部</button>
+                  <button v-for="category in productCategories" :key="category" type="button" :class="{'active': productCategory === category}" :aria-pressed="productCategory === category" @click="productCategory = category">[[category]]</button>
+                </div>
+                <div v-if="filteredProducts.length" class="product-grid">
+                  <article v-for="product in filteredProducts" :key="product.product_id" class="product-card">
+                    <div class="product-visual" :class="'category-' + productCategoryClass(product.category)">
+                      <img v-if="product.image" :src="product.image" :alt="product.name" @error="product.image = ''">
+                      <span v-else class="product-placeholder-icon">[[productCategoryIcon(product.category)]]</span>
+                      <span class="product-id">[[product.product_id]]</span>
+                      <span v-if="productTotalStock(product) === 0" class="product-sold-out">暂时缺货</span>
+                      <span v-else-if="productTotalStock(product) === null" class="product-stock-unknown">库存待核验</span>
+                      <button v-if="isApparelProduct(product) && product.tryon_supported" type="button" class="product-tryon-badge" @click="openTryOn(product)"><i class="el-icon-magic-stick" aria-hidden="true"></i> 试穿</button>
+                    </div>
+                    <div class="product-card-body">
+                      <div class="product-card-heading">
+                        <div>
+                          <span class="product-category">[[product.category]]</span>
+                          <h2>[[product.name]]</h2>
+                        </div>
+                        <strong class="product-price">¥[[formatMoney(product.price)]]</strong>
+                      </div>
+                      <ul class="product-highlights">
+                        <li v-for="highlight in (product.highlights || []).slice(0, 3)" :key="highlight">[[highlight]]</li>
+                      </ul>
+                      <small v-if="product.image && product.image_attribution && (product.image_attribution.author || product.image_attribution.license)" class="product-image-credit" :title="product.image_attribution.attribution_text">
+                        <span>图片：[[product.image_attribution.author]]</span><span aria-hidden="true">·</span>
+                        <a v-if="product.image_attribution.license_url" :href="product.image_attribution.license_url" target="_blank" rel="noopener noreferrer" @click.stop>[[product.image_attribution.license]]</a>
+                        <span v-else>[[product.image_attribution.license]]</span>
+                      </small>
+                      <div class="product-stock-line">
+                        <span :class="{'low-stock': productTotalStock(product) > 0 && productTotalStock(product) <= 5, 'out-of-stock': productTotalStock(product) === 0}">[[formatProductStock(product)]]</span>
+                        <span>[[product.skus ? product.skus.length : 0]] 个规格</span>
+                      </div>
+                      <div class="product-actions">
+                        <button type="button" class="store-btn store-btn-ghost" :aria-pressed="styleCompareIds.includes(product.product_id)" @click="toggleStyleCompare(product)">[[styleCompareIds.includes(product.product_id) ? '已选比较 ✓' : '加入比较']]</button>
+                        <button type="button" class="store-btn store-btn-ghost" @click="askProduct(product)">问客服</button>
+                        <a v-if="product.source_url" class="store-btn store-btn-link" :href="product.source_url" target="_blank" rel="noopener noreferrer">公开原页</a>
+                        <button v-if="isApparelProduct(product)" type="button" class="store-btn store-btn-soft" @click="openSizeAdvisor(product)">尺码推荐</button>
+                        <button type="button" class="store-btn store-btn-primary" :disabled="!canDemoOrderProduct(product)" @click="openOrderPreview(product)">[[productTotalStock(product) === null ? '库存待核验' : '立即下单']]</button>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <div v-if="catalogServerBacked && productPages > 1" class="storefront-pagination">
+                  <button type="button" :disabled="productPage <= 1" @click="loadProducts(productPage - 1)">上一页</button>
+                  <span>第 [[productPage]] / [[productPages]] 页 · 共 [[productTotal]] 件商品</span>
+                  <button type="button" :disabled="productPage >= productPages" @click="loadProducts(productPage + 1)">下一页</button>
+                </div>
+                <div v-if="!filteredProducts.length" class="storefront-empty">
+                  <span>⌕</span>
+                  <strong>没有找到匹配商品</strong>
+                  <p>换个关键词或切换商品分类试试。</p>
+                </div>
+              </section>
+
+              <section v-show="!storeLoading && storeActiveTab === 'orders'" class="storefront-view storefront-orders-view">
+                <div class="storefront-view-heading">
+                  <div><span>MY ORDERS</span><h2>我的订单</h2></div>
+                  <button type="button" class="store-btn store-btn-ghost" @click="loadStorefront(true)">刷新</button>
+                </div>
+                <div v-if="visibleOrders.length" class="order-list">
+                  <article v-for="order in visibleOrders" :key="order.order_id" class="order-card">
+                    <header>
+                      <div><strong>订单 [[displayOrderNo(order.order_id)]]</strong><small>[[formatStoreDateTime(order.created_at)]]</small></div>
+                      <span class="order-status" :class="'status-' + order.status">[[order.status_text || formatOrderStatus(order.status)]]</span>
+                    </header>
+                    <div v-for="item in order.items" :key="item.product_id + item.spec" class="order-item-row">
+                      <span class="order-item-icon">[[productCategoryIcon(productCategoryFor(item.product_id))]]</span>
+                      <div><strong>[[item.product_name]]</strong><small>[[item.spec]] · ×[[item.quantity]]</small></div>
+                    </div>
+                    <div class="order-business-meta">
+                      <span><i class="el-icon-bank-card" aria-hidden="true"></i> 体验余额已支付</span>
+                      <span><i class="el-icon-position" aria-hidden="true"></i> [[order.shipping && order.shipping.from ? order.shipping.from : storeAccount.store_address]] → [[order.shipping && order.shipping.to ? order.shipping.to : storeAccount.customer_address]]</span>
+                      <span v-if="Number(order.refunded_amount || 0) > 0"><i class="el-icon-refresh" aria-hidden="true"></i> 已退款 ¥[[formatMoney(order.refunded_amount)]]</span>
+                    </div>
+                    <footer>
+                      <div class="order-total"><small>实付</small><strong>¥[[formatMoney(order.paid_amount)]]</strong></div>
+                      <div class="order-actions">
+                        <button type="button" class="store-btn store-btn-ghost" @click="askOrder(order)">咨询订单</button>
+                        <button v-if="order.logistics_no_masked" type="button" class="store-btn store-btn-soft" @click="openLogistics(order)">查看物流</button>
+                        <button v-if="canCancelOrder(order)" type="button" class="store-btn store-btn-ghost danger-text" @click="cancelSandboxOrder(order)">取消订单</button>
+                        <button v-if="canAdvanceDemoOrder(order)" type="button" class="store-btn store-btn-demo" :disabled="orderSimulationId === order.order_id" @click="advanceDemoOrder(order.order_id)">下一物流节点</button>
+                        <button v-if="canAdvanceDemoOrder(order)" type="button" class="store-btn store-btn-primary" :disabled="Boolean(orderSimulationId)" @click="simulateOrderJourney(order.order_id)">[[orderSimulationId === order.order_id ? '配送模拟中…' : '模拟完整配送']]</button>
+                        <button v-if="canOpenReturn(order)" type="button" class="store-btn store-btn-primary" @click="openReturnPreview(order)">申请售后</button>
+                        <button v-else type="button" class="store-btn store-btn-disabled" disabled>[[returnActionText(order)]]</button>
+                      </div>
+                    </footer>
+                  </article>
+                </div>
+                <div v-else class="storefront-empty">
+                  <span>▧</span><strong>当前客户暂无订单</strong><p>可先从商品页选择规格并下单。</p>
+                </div>
+              </section>
+
+              <section v-show="!storeLoading && storeActiveTab === 'logistics'" class="storefront-view storefront-logistics-view">
+                <div class="storefront-view-heading">
+                  <div><span>DELIVERY</span><h2>订单物流过程</h2></div>
+                  <small>到达时间均为预计，请以承运信息更新为准</small>
+                </div>
+                <div v-if="visibleLogistics.length" class="logistics-list">
+                  <article v-for="record in visibleLogistics" :key="record.order_id" class="logistics-card">
+                    <header>
+                      <div><span>订单 [[displayOrderNo(record.order_id)]]</span><strong>[[record.status_text]]</strong></div>
+                      <div class="logistics-summary"><span>[[record.route && record.route.from ? record.route.from : storeAccount.store_address]] → [[record.route && record.route.to ? record.route.to : storeAccount.customer_address]]</span><small>业务沙盒配送流程</small></div>
+                    </header>
+                    <div class="delivery-progress" aria-label="配送进度">
+                      <span v-for="stage in deliveryStages(record.status)" :key="stage.label" :class="{'done': stage.done, 'current': stage.current}"><i></i><b>[[stage.label]]</b></span>
+                    </div>
+                    <div class="delivery-estimate">预计送达：<strong>[[record.estimated_delivery || '以物流更新为准']]</strong></div>
+                    <ol class="logistics-timeline">
+                      <li v-for="(event, eventIndex) in record.events" :key="event.time + eventIndex" :class="{'latest': eventIndex === 0}">
+                        <span class="timeline-dot"></span>
+                        <div><strong>[[event.description]]</strong><small>[[event.time]]</small></div>
+                      </li>
+                    </ol>
+                    <div class="logistics-actions">
+                      <button type="button" class="store-btn store-btn-ghost" @click="askLogistics(record)">向客服询问本单物流</button>
+                      <button v-if="canAdvanceDemoOrder(orderFor(record.order_id))" type="button" class="store-btn store-btn-demo" @click="advanceDemoOrder(record.order_id)">进入下一节点</button>
+                      <button v-if="canAdvanceDemoOrder(orderFor(record.order_id))" type="button" class="store-btn store-btn-primary" :disabled="Boolean(orderSimulationId)" @click="simulateOrderJourney(record.order_id)">[[orderSimulationId === record.order_id ? '配送模拟中…' : '模拟完整配送']]</button>
+                    </div>
+                  </article>
+                </div>
+                <div v-else class="storefront-empty">
+                  <span>◇</span><strong>暂无可展示的物流记录</strong><p>未发货订单不会生成物流轨迹。</p>
+                </div>
+              </section>
+
+              <section v-show="!storeLoading && storeActiveTab === 'afterSales'" class="storefront-view storefront-after-sales-view">
+                <div class="storefront-view-heading">
+                  <div><span>AFTER SALES</span><h2>退货与售后</h2></div>
+                  <small>提交前会再次确认，退款将返回体验余额</small>
+                </div>
+                <div class="after-sales-guide">
+                  <article><span>1</span><div><strong>选择订单</strong><p>核对商品、签收状态和退货原因。</p></div></article>
+                  <article><span>2</span><div><strong>客服核对政策</strong><p>根据七日无理由、质量问题及店铺规则判断。</p></div></article>
+                  <article><span>3</span><div><strong>完成退款</strong><p>商品退回并确认收货后，退款返回体验余额。</p></div></article>
+                </div>
+                <div v-if="storeReturns.length" class="return-record-list">
+                  <h3>售后记录</h3>
+                  <article v-for="record in storeReturns" :key="record.return_id">
+                    <span><strong>[[displayReturnNo(record.return_id)]]</strong><small>订单 [[displayOrderNo(record.order_id)]] · 数量 [[record.quantity]]<template v-if="Number(record.refund_amount || 0) > 0"> · 退款 ¥[[formatMoney(record.refund_amount)]]</template></small></span>
+                    <span class="return-record-actions"><em>[[record.status_text || record.status]]</em><button v-if="canAdvanceReturn(record)" type="button" class="store-btn store-btn-primary" :disabled="Boolean(returnSimulationId)" @click="simulateReturnJourney(record)">[[returnSimulationId === record.return_id ? '处理中…' : '完成售后流程']]</button><button v-else-if="record.manual_review_required && record.status !== 'demo_refund_completed'" type="button" class="store-btn store-btn-disabled" disabled>等待人工复核</button></span>
+                  </article>
+                </div>
+                <div class="after-sales-order-list">
+                  <button v-for="order in visibleOrders" :key="order.order_id" type="button" :disabled="!canOpenReturn(order)" @click="canOpenReturn(order) && openReturnPreview(order)">
+                    <span><strong>[[displayOrderNo(order.order_id)]]</strong><small>[[order.items && order.items[0] ? order.items[0].product_name : '订单商品']]</small></span>
+                    <em>[[returnActionText(order, true)]]</em>
+                  </button>
+                </div>
+                <div class="policy-source-card">
+                  <strong>政策信息以公开法规和店铺正式规则为准</strong>
+                  <p>本项目不会把参考店铺私有规则冒充为国家通用规则，也不会承诺必然退款或必然送达。</p>
+                  <button type="button" class="store-btn store-btn-soft" @click="sourcesDialogVisible = true">查看公开来源</button>
+                </div>
+              </section>
+            </div>
+          </main>
+
+          <section class="storefront-avatar-column" :class="{'mobile-active': mobileWorkspaceTab === 'avatar'}" aria-label="数字人客服形象区域">
+            <section id="fayAvatarStage" class="live2d-avatar-stage live2d-sidebar-stage{{ ' live2d-static-stage' if not live2d_assets_available else '' }}" data-model="{{ live2d_model }}" data-model-base="/static/live2d/model/" data-state="{{ 'loading' if live2d_assets_available else 'idle' }}" data-affect="neutral" data-action="neutral" data-loaded="false" data-mouth="unknown" aria-label="小如数字人形象" v-pre>
+              <div class="live2d-stage-header">
+                <div class="live2d-stage-title">
+                  <span class="live2d-status-dot" aria-hidden="true"></span>
+                  <span id="fayAvatarStatus">{{ '形象加载中' if live2d_assets_available else '小如在这里' }}</span>
+                </div>
+                <span class="live2d-stage-badge">{{ 'LIVE2D' if live2d_assets_available else '小如' }}</span>
+              </div>
+              <div id="fayLive2DCanvas" class="fay-live2d-canvas-host">
+                <div class="live2d-fallback" aria-hidden="true">
+                  <img src="{{ customer_avatar_url }}" alt="">
+                  <span>{{ '数字人加载中' if live2d_assets_available else '小如陪你挑选' }}</span>
+                </div>
+              </div>
+              <div class="live2d-stage-footer">
+                <div id="fayAvatarCaption" class="live2d-caption">你好，我是小如，可以帮你看看商品和穿搭</div>
+                <div class="live2d-hint">{{ '语音回复时将自动驱动口型与动作' if live2d_assets_available else '告诉小如你的场景和预算' }}</div>
+              </div>
+            </section>
+          </section>
+
+          <div class="conversation-column customer-service-panel" :class="{'mobile-active': mobileWorkspaceTab === 'service'}">
+            <div class="service-panel-header">
+              <div>
+                <img class="service-header-avatar" src="{{ customer_avatar_url }}" alt="小如的头像">
+                <div><strong>小如</strong><small class="service-online-label" :title="panelMsg"><span class="service-online-dot" :class="{'is-offline': liveState != 1}" aria-hidden="true"></span>[[liveState == 1 ? '在线 · 为你挑选合适的商品' : '待启动 · 商品与订单服务']]</small></div>
+              </div>
+              <div class="service-quick-actions">
+                <button class="service-tool-button" type="button" @click="sendCommercePrompt('帮我规划一套穿搭')" title="和数字人聊穿搭" aria-label="和数字人聊穿搭"><i class="el-icon-magic-stick" aria-hidden="true"></i></button>
+                <button class="service-tool-button" type="button" @click="sendCommercePrompt('请介绍一下目前有哪些商品')" title="选商品" aria-label="选商品"><i class="el-icon-shopping-bag-2" aria-hidden="true"></i></button>
+                <button class="service-tool-button" type="button" @click="sendCommercePrompt('我想查询订单，请提示我需要提供什么信息')" title="查订单" aria-label="查订单"><i class="el-icon-tickets" aria-hidden="true"></i></button>
+                <button v-if="!shareSelectMode && messages.length > 0" type="button" class="share-entry-btn service-tool-button" @click="enterShareSelectMode" title="多选生成分享图" aria-label="多选生成分享图"><i class="el-icon-share" aria-hidden="true"></i></button>
+              </div>
+            </div>
+
+            <!-- 多选操作栏 -->
+            <div class="share-toolbar" v-if="shareSelectMode">
+              <span class="share-toolbar-info">已选 [[shareSelectedCount]] 条消息</span>
+              <el-button size="mini" @click="shareSelectAll">全选</el-button>
+              <el-button size="mini" @click="shareDeselectAll">取消全选</el-button>
+              <el-button size="mini" type="primary" :disabled="shareSelectedCount === 0" @click="generateShareImage">生成分享图</el-button>
+              <el-button size="mini" @click="exitShareSelectMode">退出</el-button>
+            </div>
+
+        <div class="chatmessage-wrapper">
+          <div class="chatmessage" :class="{'chatmessage-select-mode': shareSelectMode, 'chatmessage-panel-open': execPanelOpen}">
+            <div class="chat-container" id="user0">
+              <!-- 加载更多提示 -->
+              <div v-if="loadingMoreMessages" class="loading-more">
+                <span class="loading-spinner"></span>
+                <span>加载中...</span>
+              </div>
+              <div v-else-if="hasMoreMessages" class="load-more-hint">
+                ↑ 上拉加载更多历史消息
+              </div>
+              <div v-else-if="messages.length > 0" class="no-more-messages">
+                — 没有更多消息了 —
+              </div>
+              <div v-for="(item, index) in messages" :key="index" class="message-row" :class="{'message-row-selected': item.shareSelected}" @click="shareSelectMode && toggleShareSelect(index)">
+                <div v-if="shareSelectMode" class="share-checkbox">
+                  <span :class="item.shareSelected ? 'share-cb-checked' : 'share-cb-unchecked'"></span>
+                </div>
+                <div class="message receiver-message" v-if="item.type == 'fay'" style="flex:1;min-width:0;">
+                  <img class="avatar" src="{{ customer_avatar_url }}" alt="小如的头像">
+                  <div class="message-content">
+                    <div class="message-bubble">
+                      <div v-if="parseThinkContent(item.content).thinkContent || item.thinkLoading" class="think-toggle" @click.stop="toggleThink(index)">
+                        <span class="think-arrow" :class="{'expanded': item.thinkExpanded}">▶</span>
+                        <span class="think-label">思考过程</span>
+                        <span v-if="item.thinkLoading" class="think-spinner"></span>
+                      </div>
+<div v-if="(parseThinkContent(item.content).thinkContent || item.thinkLoading) && item.thinkExpanded" class="think-content-inline">[[parseThinkContent(item.content).thinkContent]]</div>
+                      <div class="message-text markdown-body" v-html="renderMarkdown(parseThinkContent(item.content).mainContent)"></div>
+                      <div v-if="item.presentation" class="chat-style-advice">
+                        <div v-if="item.presentation.tool_calls && item.presentation.tool_calls.length" class="chat-style-tool-evidence"><i class="el-icon-check" aria-hidden="true"></i>[[item.presentation.tool_calls.some(call => call.tool === 'inspect_outfit_photo') ? '本地看图' : '需求规划']]<span v-if="item.presentation.plan && item.presentation.plan.outfits.length"> → 商品检索 · 预算核对</span></div>
+                        <div v-if="item.presentation.plan" class="chat-style-outfits">
+                          <details v-for="(outfit, oi) in item.presentation.plan.outfits" :key="oi" :open="oi === 0" class="chat-style-look">
+                            <summary><strong>[[outfit.title]]</strong><span>¥[[outfit.total.toFixed(2)]]</span></summary>
+                            <p>[[outfit.reason]]</p>
+                            <div class="chat-style-products">
+                              <div v-for="product in outfit.items" :key="product.product_id" class="chat-style-product">
+                                <img :src="product.image_url" :alt="product.name" loading="lazy">
+                                <strong :title="product.name">[[product.name]]</strong><span>¥[[product.price.toFixed(2)]]</span>
+                                <small>[[product.size_note]]</small>
+                                <div class="chat-style-product-actions">
+                                  <button type="button" :disabled="!product.tryon_supported" :title="product.tryon_supported ? '开始试穿' : '配置已授权的真实服装图片后可试穿'" @click.stop="tryChatStyleProduct(product)">试穿</button>
+                                  <button type="button" @click.stop="chatStyleSize(product, item.presentation.plan)">问尺码</button>
+                                  <button type="button" @click.stop="sendCommercePrompt('这款商品 ' + product.product_id + ' 怎么样？')">问客服</button>
+                                  <a v-if="product.source_url" :href="product.source_url" target="_blank" rel="noopener noreferrer" @click.stop>来源页</a>
+                                </div>
+                              </div>
+                            </div>
+                          </details>
+                          <small class="chat-style-notice">[[item.presentation.plan.notice]]</small>
+                        </div>
+                        <div class="chat-style-suggestions">
+                          <button v-for="suggestion in item.presentation.suggestions" :key="suggestion" type="button" @click.stop="sendCommercePrompt(suggestion)">[[suggestion]]</button>
+                        </div>
+                      </div>
+                      <div v-if="parseThinkContent(item.content).prestartContent" class="prestart-toggle" @click.stop="togglePrestart(index)">
+                        <span class="prestart-arrow" :class="{'expanded': item.prestartExpanded}">▶</span>
+                        <span class="prestart-label">预启动工具</span>
+                      </div>
+                      <div v-if="parseThinkContent(item.content).prestartContent && item.prestartExpanded" class="prestart-content-inline" v-html="convertImagePaths(parseThinkContent(item.content).prestartContent)"></div>
+                    </div>
+                    <div class="message-time">
+                      <span class="what-time">[[item.timetext]]</span>
+                      <div v-if="item.is_adopted == 0" class="adopt-button" @click.stop="adoptText(item.id)">
+                        <img src="{{ url_for('static',filename='images/adopt.png') }}" alt="采纳图标" class="adopt-img" />
+                      </div>
+                      <div v-else class="adopt-button" @click.stop="unadoptText(item.id)">
+                        <img src="{{ url_for('static',filename='images/adopted.png') }}" alt="已采纳图标" class="adopt-img" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="message sender-message" v-else style="flex:1;min-width:0;">
+                  <div class="message-content">
+                    <div class="sender-message message-bubble">[[item.content]]</div>
+                    <div class="sender-message-time">[[item.timetext]]</div>
+                  </div>
+                  <img class="avatar" src="{{ url_for('static',filename='images/User_send.png') }}" alt="发送者头像">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 后台任务侧边栏 -->
+          <div class="exec-panel" :class="{'exec-panel-open': execPanelOpen}">
+            <button type="button" class="exec-panel-tab" @click="toggleExecPanel" :class="{'exec-tab-active': execStatus.status === 'running'}" :aria-expanded="execPanelOpen ? 'true' : 'false'" aria-label="后台任务">
+              <span class="exec-tab-icon">&#9881;</span>
+              <span v-if="execStatus.status === 'running'" class="exec-tab-dot"></span>
+            </button>
+            <div class="exec-panel-body" v-show="execPanelOpen">
+              <div class="exec-panel-header">
+                <span class="exec-panel-title">后台任务</span>
+                <span class="exec-panel-close" @click="execPanelOpen = false">&times;</span>
+              </div>
+              <div v-if="execStatus.status === 'idle'" class="exec-panel-empty">
+                暂无后台任务
+              </div>
+              <div v-else class="exec-panel-content">
+                <div class="exec-status-badge" :class="'exec-status-' + execStatus.status">
+                  [[ execStatusLabel ]]
+                </div>
+                <div class="exec-detail-row">
+                  <span class="exec-detail-label">请求</span>
+                  <span class="exec-detail-value">[[ execStatus.original_request ]]</span>
+                </div>
+                <div class="exec-detail-row">
+                  <span class="exec-detail-label">进度</span>
+                  <span class="exec-detail-value">[[ execStatus.current_step || '-' ]]</span>
+                </div>
+                <div class="exec-detail-row">
+                  <span class="exec-detail-label">已完成</span>
+                  <span class="exec-detail-value">[[ execStatus.steps_done ]] 步 / [[ execStatus.elapsed ]]s</span>
+                </div>
+                <div v-if="execStatus.error" class="exec-detail-row exec-error-row">
+                  <span class="exec-detail-label">错误</span>
+                  <span class="exec-detail-value">[[ execStatus.error ]]</span>
+                </div>
+                <div v-if="execStatus.progress_messages && execStatus.progress_messages.length" class="exec-log-section">
+                  <div class="exec-log-title">执行日志</div>
+                  <div class="exec-log-list">
+                    <div v-for="(log, i) in execStatus.progress_messages" :key="i" class="exec-log-item">[[ log ]]</div>
+                  </div>
+                </div>
+                <div v-if="execStatus.status === 'running'" class="exec-panel-actions">
+                  <button class="exec-btn exec-btn-cancel" @click="cancelExecution">取消任务</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分享图预览弹窗 -->
+        <el-dialog title="分享图预览" :visible.sync="sharePreviewVisible" width="560px" top="3vh" :close-on-click-modal="false">
+          <div style="max-height:75vh;overflow-y:auto;">
+            <div id="sharePreviewContainer" class="share-preview-card">
+              <div class="share-preview-header">[[storeMeta.name]] · 数字客服服务摘要</div>
+              <div v-for="(item, idx) in shareSelectedMessages" :key="idx" class="share-preview-msg">
+                <div v-if="item.type === 'fay'" class="share-preview-fay">
+                  <div class="share-preview-name">数字客服</div>
+                  <div class="share-preview-bubble share-preview-bubble-fay markdown-body" v-html="renderMarkdown(parseThinkContent(item.content).mainContent)"></div>
+                  <div class="share-preview-time">[[item.timetext]]</div>
+                </div>
+                <div v-else class="share-preview-user">
+                  <div class="share-preview-name" style="text-align:right;">[[selectedUser ? selectedUser[1] : '用户']]</div>
+                  <div class="share-preview-bubble share-preview-bubble-user">[[item.content]]</div>
+                  <div class="share-preview-time" style="text-align:right;">[[item.timetext]]</div>
+                </div>
+              </div>
+              <div class="share-preview-footer">
+                业务沙盒客服记录 &nbsp;·&nbsp; 商品、订单与政策信息请以实时页面和正式规则为准
+              </div>
+            </div>
+          </div>
+          <span slot="footer" class="dialog-footer">
+            <el-button size="small" @click="sharePreviewVisible = false">关闭</el-button>
+            <el-button size="small" type="primary" @click="downloadShareImage">保存图片</el-button>
+          </span>
+        </el-dialog>
+
+        <div class="chat-style-composer" :class="{'dragging': chatStyleDragging}" @dragover.prevent="chatStyleDragging = true" @dragleave.prevent="chatStyleDragging = false" @drop.prevent="handleChatStyleDrop">
+          <div v-if="chatStylePreview" class="chat-style-attachment">
+            <img :src="chatStylePreview" alt="本次对话的照片预览">
+            <div>
+              <strong>[[chatStylePhotoSent ? '这张照片已用于本次对话' : '随消息发给数字客服']]</strong>
+              <select v-model="chatStyleMode" :disabled="chatStylePhotoSent || chatStyleSending" aria-label="对话照片类型"><option value="person">我的穿着照片</option><option value="garment">我已有的衣服</option></select>
+              <label v-if="!chatStylePhotoSent"><input type="checkbox" v-model="chatStyleConsent">同意本机分析这张照片</label>
+              <small v-else>可以继续用文字或语音调整，也可以点商品卡试穿</small>
+            </div>
+            <button type="button" @click="clearChatStylePhoto" :disabled="chatStyleSending" title="移除照片" aria-label="移除照片">×</button>
+          </div>
+          <div v-if="chatStylePending" class="chat-style-tool-progress" role="status"><i class="el-icon-loading"></i>[[chatStyleProgress]]</div>
+          <div v-if="!chatStylePreview && !chatStylePending" class="chat-style-entry"><span>让小如帮你搭配</span><button type="button" @click="sendCommercePrompt('帮我规划一套穿搭')">聊穿搭</button><button type="button" @click="chooseChatStylePhoto">发照片听建议</button></div>
+        <div class="inputmessage">
+          <div class="inputmessage_voice">
+            <button type="button" class="chat-icon-button" :class="{'is-active': source_record_enabled}" :title="source_record_enabled ? '关闭麦克风' : '开启麦克风'" :aria-label="source_record_enabled ? '关闭麦克风' : '开启麦克风'" :aria-pressed="source_record_enabled ? 'true' : 'false'" @click="changeRecord()"><i :class="source_record_enabled ? 'el-icon-microphone' : 'el-icon-turn-off-microphone'" aria-hidden="true"></i></button>
+          </div>
+          <div class="inputmessage_input">
+            <textarea class="text_in" placeholder="告诉我想怎么穿，也可以拖入照片…" aria-label="客服消息" v-model="newMessage" @keydown.enter.exact.prevent="sendMessage"></textarea>
+          </div>
+          <input ref="chatStylePhotoInput" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" @change="handleChatStylePhoto">
+          <button type="button" class="chat-icon-button" @click="chooseChatStylePhoto" :disabled="chatStyleSending || chatStylePending" title="上传穿着或衣服照片" aria-label="上传穿着或衣服照片"><i class="el-icon-picture-outline"></i></button>
+          <div class="inputmessage_send">
+            <button type="button" class="chat-icon-button chat-send-button" :disabled="chatStyleSending" title="发送消息" aria-label="发送消息" @click="sendMessage"><i :class="chatStyleSending ? 'el-icon-loading' : 'el-icon-s-promotion'" aria-hidden="true"></i></button>
+          </div>
+          <div v-if="liveState == 1" class="inputmessage_open">
+            <button type="button" class="chat-icon-button" :class="{'is-active': play_sound_enabled}" :title="play_sound_enabled ? '关闭语音播放' : '开启语音播放'" :aria-label="play_sound_enabled ? '关闭语音播放' : '开启语音播放'" :aria-pressed="play_sound_enabled ? 'true' : 'false'" @click="changeSound()"><i :class="play_sound_enabled ? 'el-icon-bell' : 'el-icon-close-notification'" aria-hidden="true"></i></button>
+          </div>
+          <div v-else class="inputmessage_open">
+            <button type="button" class="chat-icon-button" title="启动数字客服" aria-label="启动数字客服" @click="startLive()"><i class="el-icon-video-play" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        </div>
+
+        <div class="Userchange">
+          <button id="prevButton" type="button" title="向左滑动" aria-label="向左滑动">
+            <i class="el-icon-arrow-left" aria-hidden="true"></i>
+          </button>
+          <div class="menu" ref="menuContainer">
+            <div class="tag" v-for="user in userList" :key="user[0]" :class="{'selected': selectedUser && selectedUser[0] === user[0]}" @click="selectUser(user)" @mouseenter="showDeleteBtn(user)" @mouseleave="hideDeleteBtn(user)">
+              [[ user[1] === 'User' ? '默认客户' : user[1] ]]
+              <span v-if="user[1] !== 'User' && user.showDelete" class="user-delete-btn" @click.stop="confirmDeleteUser(user)" title="删除用户">&times;</span>
+            </div>
+          </div>
+          <button id="nextButton" type="button" title="向右滑动" aria-label="向右滑动">
+            <i class="el-icon-arrow-right" aria-hidden="true"></i>
+          </button>
+          <button class="add-user-btn" @click="showAddUserDialog" title="添加用户">+</button>
+        </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加用户对话框 -->
+      <el-dialog title="添加新用户" :visible.sync="addUserDialogVisible" width="350px" :close-on-click-modal="false">
+        <el-input v-model="newUsername" placeholder="请输入用户名" @keyup.enter.native="addUser" maxlength="20" show-word-limit></el-input>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="addUserDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="addUser">添加</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 用户信息编辑对话框 -->
+      <el-dialog :title="'编辑客户信息 - ' + (editingUserForExtraInfo ? (editingUserForExtraInfo[1] === 'User' ? '默认客户' : editingUserForExtraInfo[1]) : '')" :visible.sync="extraInfoDialogVisible" width="600px" :close-on-click-modal="false">
+        <div style="margin-bottom: 15px;">
+          <div style="font-weight: bold; margin-bottom: 8px; color: #606266;">用户补充信息</div>
+          <el-input type="textarea" v-model="editingExtraInfo" placeholder="请输入用户补充信息，例如：喜好、特征、注意事项等" :rows="4" maxlength="500" show-word-limit></el-input>
+          <div style="margin-top: 5px; color: #909399; font-size: 12px;">此信息会附加到对话提示词中，帮助AI更好地了解该用户</div>
+        </div>
+        <div>
+          <div style="font-weight: bold; margin-bottom: 8px; color: #606266;">用户画像 <span style="font-weight: normal; color: #909399; font-size: 12px;">(每晚22:35自动分析更新)</span></div>
+          <el-input type="textarea" v-model="editingUserPortrait" placeholder="用户画像由系统根据对话内容自动分析生成，也可手动编辑" :rows="6" maxlength="1000" show-word-limit></el-input>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="extraInfoDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveUserInfo">保存</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 尺码推荐：身体数据只用于本次咨询，不进入长期记忆。 -->
+      <el-dialog title="尺码推荐" :visible.sync="sizeDialogVisible" width="520px" custom-class="storefront-dialog" :close-on-click-modal="false">
+        <div v-if="selectedProduct" class="dialog-product-summary">
+          <span class="dialog-product-icon">[[productCategoryIcon(selectedProduct.category)]]</span>
+          <div><strong>[[selectedProduct.name]]</strong><small>[[selectedProduct.product_id]] · [[selectedProduct.category]]</small></div>
+        </div>
+        <div class="storefront-dialog-notice">身高、体重和围度仅用于本次尺码咨询，不写入长期记忆、知识库或 Embedding。线上推荐仅供参考，不能代替实际试穿。</div>
+        <div class="size-form-grid">
+          <label><span>身高（cm）*</span><el-input-number v-model="sizeForm.height" :min="120" :max="220" :step="1" controls-position="right"></el-input-number></label>
+          <label><span>体重（kg）*</span><el-input-number v-model="sizeForm.weight" :min="30" :max="200" :step="1" controls-position="right"></el-input-number></label>
+          <label><span>胸围（cm）</span><el-input-number v-model="sizeForm.chest" :min="50" :max="180" :step="1" controls-position="right"></el-input-number></label>
+          <label><span>肩宽（cm）</span><el-input-number v-model="sizeForm.shoulder" :min="25" :max="80" :step="1" controls-position="right"></el-input-number></label>
+          <label class="size-fit-field"><span>穿着偏好</span><el-select v-model="sizeForm.fit" placeholder="请选择"><el-option label="合身" value="合身"></el-option><el-option label="偏修身" value="偏修身"></el-option><el-option label="偏宽松" value="偏宽松"></el-option></el-select></label>
+        </div>
+        <div v-if="sizeRecommendationResult" class="size-result-card" :class="{'has-error': sizeRecommendationResult.error}">
+          <strong>[[sizeRecommendationResult.error ? '暂时无法给出具体尺码' : '尺码工具结果']]</strong>
+          <p>[[sizeRecommendationResult.message]]</p>
+          <div v-if="sizeRecommendationResult.recommendations && sizeRecommendationResult.recommendations.length" class="size-result-tags"><span v-for="size in sizeRecommendationResult.recommendations" :key="size">[[size]]</span></div>
+          <small v-if="sizeRecommendationResult.privacy_notice">[[sizeRecommendationResult.privacy_notice]]</small>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="sizeDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="sizeRecommendationLoading" @click="submitSizeRecommendation">调用尺码工具</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 虚拟试衣：原图临时处理，真实 Provider 未配置时绝不返回伪造结果。 -->
+      <el-dialog title="AI 虚拟试衣" :visible.sync="tryOnDialogVisible" width="1120px" custom-class="storefront-dialog tryon-dialog" :close-on-click-modal="false" :before-close="closeTryOnDialog">
+        <div v-if="selectedProduct" class="dialog-product-summary">
+          <img v-if="tryOnDisplayReference && tryOnDisplayReference.image_url" class="tryon-product-thumb" :src="tryOnDisplayReference.image_url" :alt="selectedProduct.name + '试衣参考图'">
+          <span v-else class="dialog-product-icon">[[productCategoryIcon(selectedProduct.category)]]</span>
+          <div><strong>[[selectedProduct.name]]</strong><small>[[tryOnReferenceLabel]]</small><small>上传全身照，预览上方衣服的试穿效果</small></div>
+        </div>
+        <div v-if="!tryOnStatus.configured" class="storefront-dialog-notice danger">
+          试衣服务暂时不可用。系统不会使用拼图或普通换图冒充 AI 试穿结果。
+        </div>
+        <div v-else-if="tryOnStatus.development_placeholder" class="storefront-dialog-notice danger">
+          当前处于功能联调模式，结果仅用于测试上传、下载和删除流程，不作为 AI 试穿效果。
+        </div>
+        <div class="tryon-workspace">
+          <section class="tryon-upload-panel">
+            <strong>1. 上传清晰全身照</strong>
+            <label class="tryon-upload-box" :class="{'has-preview': tryOnPhotoPreview, 'is-dragging': tryOnPhotoDragging, 'is-disabled': tryOnLoading}" role="button" aria-label="点击或拖入全身照片" :aria-disabled="tryOnLoading ? 'true' : 'false'" :tabindex="tryOnLoading ? -1 : 0" @keydown.enter.prevent="chooseTryOnPhoto" @keydown.space.prevent="chooseTryOnPhoto" @dragenter.prevent.stop="handleTryOnPhotoDragEnter" @dragover.prevent.stop="handleTryOnPhotoDragOver" @dragleave.prevent.stop="handleTryOnPhotoDragLeave" @drop.prevent.stop="handleTryOnPhotoDrop">
+              <input ref="tryOnPhotoInput" type="file" tabindex="-1" aria-label="选择全身照片文件" accept="image/jpeg,image/png,image/webp" :disabled="tryOnLoading" @change="handleTryOnPhoto">
+              <img v-if="tryOnPhotoPreview" :src="tryOnPhotoPreview" alt="本地全身照预览" draggable="false">
+              <span v-else class="tryon-upload-prompt"><i class="el-icon-upload2"></i><b>将全身照片拖到这里</b><small>也可以点击选择照片</small><small>JPEG / PNG / WebP · 最大 [[tryOnStatus.max_upload_mb || 64]]MB</small><small>建议正面站立、光线充足，完整露出身体</small></span>
+              <span v-if="tryOnPhotoDragging" class="tryon-drop-overlay"><i class="el-icon-upload2"></i><b>松开即可预览照片</b></span>
+            </label>
+            <div class="tryon-photo-meta"><small v-if="tryOnPhoto" :title="tryOnPhoto.name">[[tryOnPhoto.name]] · [[(tryOnPhoto.size / 1024 / 1024).toFixed(2)]]MB</small><small v-else>一次上传一张照片，生成前可更换</small><button v-if="tryOnPhoto" type="button" class="tryon-text-action" :disabled="tryOnLoading" @click="chooseTryOnPhoto">更换照片</button></div>
+          </section>
+          <section class="tryon-result-panel">
+            <strong>2. 查看试穿效果</strong>
+            <div class="tryon-result-box" :class="{'is-placeholder': tryOnResult && tryOnResult.development_placeholder}">
+              <img v-if="tryOnResult" :src="tryOnResultUrl(false)" alt="AI 虚拟试衣生成结果">
+              <span v-else><i class="el-icon-picture-outline"></i><b>结果将在这里显示</b><small>效果仅供穿搭参考，不代表真实尺码与面料垂感</small></span>
+              <em v-if="tryOnResult && tryOnResult.development_placeholder">功能联调预览</em>
+            </div>
+            <small v-if="!tryOnResult" class="tryon-result-help">照片预览就绪后，勾选下方同意项并点击生成</small>
+            <div v-if="tryOnResult" class="tryon-result-actions">
+              <button type="button" class="store-btn store-btn-soft" :disabled="tryOnDownloading" @click="downloadTryOnResult">[[tryOnDownloading ? '正在准备下载…' : '下载结果']]</button>
+              <button type="button" class="store-btn store-btn-ghost" :disabled="tryOnDownloading" @click="deleteTryOnResult(false)">立即删除</button>
+            </div>
+          </section>
+        </div>
+        <div class="tryon-options">
+          <label><span>画面优化</span><el-radio-group v-model="tryOnForm.beautify"><el-radio-button label="natural">自然</el-radio-button><el-radio-button label="light">轻度美化</el-radio-button></el-radio-group></label>
+          <small>只做自然画面优化，不瘦身、不改变体型和商品颜色。</small>
+        </div>
+        <label class="tryon-consent"><input type="checkbox" v-model="tryOnForm.consent"><span>我确认拥有这张照片的使用权，并同意仅用于本次虚拟试衣。[[tryOnStatus.privacy_notice]]</span></label>
+        <div v-if="tryOnLoading" class="tryon-result-notice" role="status">正在生成试穿效果，首次使用需要加载模型，请耐心等待。</div>
+        <div v-if="tryOnResult" class="tryon-result-notice">[[tryOnReferenceLabel]]。[[tryOnResult.notice]]</div>
+        <span slot="footer" class="dialog-footer">
+          <el-button :disabled="tryOnLoading || tryOnDownloading" @click="closeTryOnDialog()">关闭并删除临时文件</el-button>
+          <el-button type="primary" :disabled="tryOnDownloading || !tryOnStatus.configured || !tryOnPhoto || !tryOnForm.consent || tryOnReferenceLoading || !tryOnReference" :loading="tryOnLoading" @click="submitTryOn">生成试穿效果</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 订单预览：使用当前会话的体验余额完成沙盒支付。 -->
+      <el-dialog title="确认订单" :visible.sync="orderDialogVisible" width="540px" custom-class="storefront-dialog" :close-on-click-modal="false">
+        <div v-if="selectedProduct" class="dialog-product-summary">
+          <span class="dialog-product-icon">[[productCategoryIcon(selectedProduct.category)]]</span>
+          <div><strong>[[selectedProduct.name]]</strong><small>单价 ¥[[formatMoney(selectedProduct.price)]]</small></div>
+        </div>
+        <div class="storefront-dialog-notice">本单使用体验账户余额支付，并按杭州发货、河南收货的业务沙盒流程履约。</div>
+        <div v-if="selectedProduct" class="order-preview-form">
+          <label v-if="selectedProduct.skus && selectedProduct.skus.length"><span>规格</span><el-select v-model="orderForm.sku_id" placeholder="请选择规格"><el-option v-for="sku in selectedProduct.skus" :key="sku.sku_id" :label="skuLabel(sku) + ' · 库存 ' + sku.stock" :value="sku.sku_id" :disabled="sku.disabled || sku.stock <= 0"></el-option></el-select></label>
+          <div v-else class="order-no-sku-note">当前商品未提供可选规格，将按商品信息下单。</div>
+          <label><span>数量</span><el-input-number v-model="orderForm.quantity" :min="1" :max="selectedSkuStock || 1"></el-input-number></label>
+          <div class="order-preview-total"><span>订单金额</span><strong>¥[[formatMoney(orderPreview && orderPreview.cart ? orderPreview.cart.total : orderPreviewTotal)]]</strong></div>
+          <div class="checkout-account-grid">
+            <span><small>支付方式</small><strong>体验账户余额</strong></span>
+            <span><small>当前余额</small><strong>¥[[formatMoney(orderPreview && orderPreview.account ? orderPreview.account.balance : storeAccount.balance)]]</strong></span>
+            <span><small>支付后余额</small><strong :class="{'insufficient': orderPreview && orderPreview.can_afford === false}">¥[[formatMoney(orderPreview ? orderPreview.balance_after : Number(storeAccount.balance || 0) - orderPreviewTotal)]]</strong></span>
+            <span><small>配送路线</small><strong>杭州 → 河南</strong></span>
+          </div>
+        </div>
+        <div v-if="orderPreview" class="transaction-confirm-card">
+          <strong>[[orderPreview.can_afford === false ? '体验余额不足' : '请确认支付']]</strong>
+          <p>[[orderPreview.can_afford === false ? '请减少购买数量或选择价格更低的商品。' : '确认后将从体验余额扣款并生成待发货订单。']]</p>
+          <small>发货地：[[orderPreview.shipping && orderPreview.shipping.from ? orderPreview.shipping.from : storeAccount.store_address]] · 收货地：[[orderPreview.shipping && orderPreview.shipping.to ? orderPreview.shipping.to : storeAccount.customer_address]]</small>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="orderDialogVisible = false">取消</el-button>
+          <el-button type="primary" :disabled="orderPreview && !canAffordOrderPreview" :loading="orderSubmitting" @click="submitDemoOrder">[[orderPreview ? '确认支付' : '核对订单']]</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 售后申请：先核对资格，再进行明确确认。 -->
+      <el-dialog title="申请售后" :visible.sync="returnDialogVisible" width="540px" custom-class="storefront-dialog" :close-on-click-modal="false">
+        <div v-if="selectedReturnOrder" class="dialog-order-summary">
+          <span>订单</span><strong>[[displayOrderNo(selectedReturnOrder.order_id)]]</strong><small>[[selectedReturnOrder.status_text || formatOrderStatus(selectedReturnOrder.status)]]</small>
+        </div>
+        <div class="storefront-dialog-notice">请核对商品、原因和预计退款金额；确认后将进入售后处理流程。</div>
+        <div class="return-preview-form">
+          <label><span>原因</span><el-select v-model="returnForm.reason"><el-option label="不喜欢/不合适" value="不喜欢或不合适"></el-option><el-option label="商品质量问题" value="商品质量问题"></el-option><el-option label="错发/漏发" value="错发或漏发"></el-option><el-option label="物流异常" value="物流异常"></el-option><el-option label="其他" value="其他原因"></el-option></el-select></label>
+          <p class="storefront-form-help">当前支持退货退款主流程；换货、维修和图片凭证可在后续版本接入。</p>
+        </div>
+        <div v-if="returnPreview" class="transaction-confirm-card">
+          <strong>请二次确认</strong>
+          <p>[[returnPreview.confirmation_text]]</p>
+          <small>商品：[[returnPreview.product_name]] · 数量：[[returnPreview.quantity]]。</small>
+          <small v-if="returnPreview.manual_review_required">本单达到大额订单复核条件，提交后将等待人工处理。</small>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="returnDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="returnSubmitting" @click="submitReturnPreview">[[returnPreview ? '提交申请' : '核对申请']]</el-button>
+        </span>
+      </el-dialog>
+
+      <el-dialog title="规则与公开资料来源" :visible.sync="sourcesDialogVisible" width="680px" custom-class="storefront-dialog storefront-sources-dialog">
+        <div class="storefront-dialog-notice">法规是最低合规边界；演示商城的店铺政策不代表真实店铺规则。商品数据：[[storeMeta.snapshot_at ? formatStoreDateTime(storeMeta.snapshot_at) : (storeMeta.dataset_label || '以当前目录配置为准')]]。</div>
+        <ol class="storefront-source-list">
+          <li v-for="source in storefrontSources" :key="source.url || source.title"><div><strong>[[source.title]]</strong><small>[[source.publisher]]</small></div><a v-if="source.url" :href="source.url" target="_blank" rel="noopener noreferrer">查看原文 ↗</a></li>
+        </ol>
+        <span slot="footer" class="dialog-footer"><el-button type="primary" @click="sourcesDialogVisible = false">知道了</el-button></span>
+      </el-dialog>
+
+      <!-- 固定在右侧的 think 信息面板 -->
+      <div class="think-panel-container" v-show="thinkContent">
+        <div class="think-panel">
+          <div class="think-panel-header">
+            <h4>思考内容</h4>
+            <button class="think-panel-minimize" @click="minimizeThinkPanel">
+              <span class="think-panel-icon" v-if="isThinkPanelMinimized">+</span>
+              <span class="think-panel-icon" v-else>-</span>
+            </button>
+          </div>
+          <p>[[thinkContent]]</p>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 初始化 thinkContent
+        if (typeof app !== 'undefined') {
+          app.thinkContent = "";
+        }
+      });
+    </script>
+  </body>
+</html>

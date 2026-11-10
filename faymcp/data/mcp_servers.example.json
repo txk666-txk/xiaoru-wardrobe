@@ -1,0 +1,49 @@
+[
+    {
+        "id": 1,
+        "name": "tools",
+        "ip": "",
+        "connection_time": "",
+        "key": "",
+        "transport": "stdio",
+        "command": "python",
+        "args": [
+            "test/mcp_stdio_example.py"
+        ],
+        "cwd": "",
+        "env": {},
+        "autostart": false
+    },
+    {
+        "id": 2,
+        "name": "yueshen rag",
+        "ip": "",
+        "connection_time": "",
+        "key": "",
+        "transport": "stdio",
+        "command": "python",
+        "args": [
+            "mcp_servers/yueshen_rag/server.py"
+        ],
+        "cwd": "",
+        "env": {},
+        "autostart": false
+    },
+    {
+        "id": 3,
+        "name": "course knowledge",
+        "ip": "",
+        "connection_time": "",
+        "key": "",
+        "transport": "stdio",
+        "command": "python",
+        "args": [
+            "mcp_servers/fay_player_knowledge/fay_player_knowledge_base_mcp_server.py",
+            "--source",
+            "./fay_player_knowledge"
+        ],
+        "cwd": "",
+        "env": {},
+        "autostart": false
+    }
+]

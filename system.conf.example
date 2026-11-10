@@ -1,0 +1,49 @@
+[key]
+# funasr / ali / sensevoice
+ASR_mode=ali
+local_asr_ip=127.0.0.1
+local_asr_port=10197
+
+# Alibaba Cloud ASR
+ali_nls_key_id=
+ali_nls_key_secret=
+ali_nls_app_key=
+
+# azure / ali / volcano / gptsovits / gptsovits_v3
+tts_module=ali
+
+# Microsoft TTS
+ms_tts_key=
+ms_tts_region=
+
+# Alibaba Cloud TTS
+ali_tss_key_id=
+ali_tss_key_secret=
+ali_tss_app_key=
+
+# Volcano TTS
+volcano_tts_appid=
+volcano_tts_access_token=
+volcano_tts_cluster=volcano_tts
+volcano_tts_voice_type=
+
+# OpenAI-compatible small model
+gpt_api_key=
+gpt_base_url=
+gpt_model_engine=
+
+# Optional large reasoning model; empty values reuse the small model
+big_model_engine=
+big_model_base_url=
+big_model_api_key=
+
+# Embedding service
+embedding_api_model=
+embedding_base_url=
+
+# Optional HTTP proxy, for example 127.0.0.1:7890
+proxy_config=
+
+# web: browser UI; common: embedded PyQt desktop window
+start_mode=common
+fay_url=http://127.0.0.1:5000

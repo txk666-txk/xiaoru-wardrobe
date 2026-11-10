@@ -1,0 +1,751 @@
+{
+  "schema_version": 1,
+  "dataset_label": "开放许可服装实拍小样本 + 虚构交易参数（不代表真实在售）",
+  "store_profile": {
+    "store_name": "小如的衣橱体验店",
+    "subtitle": "真实服装照片 · 智能搭配与试衣体验",
+    "dataset_label": "开放许可服装照片；价格、库存与尺码为沙盒参数",
+    "source_url": "https://commons.wikimedia.org/",
+    "ownership_verified": false,
+    "transaction_notice": "本项目用于智能客服与试衣演示，下单、物流和售后均在沙盒中模拟，不进行真实交易。"
+  },
+  "source_manifest": "agent/data/public_fashion_sources.json",
+  "products": [
+    {
+      "product_id": "EC1005",
+      "name": "中性深灰基础圆领短袖T恤",
+      "aliases": [
+        "短袖",
+        "灰色T恤",
+        "圆领T恤"
+      ],
+      "category": "T恤/上衣",
+      "price": 69.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/gray-tee.jpg",
+      "highlights": [
+        "基础纯色圆领",
+        "短袖平铺照片",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1005-S",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1005-M",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1005-L",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1005-XL",
+          "attributes": {
+            "颜色": "深灰",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "gray-tee",
+        "author": "EdaBojci",
+        "source": "https://commons.wikimedia.org/wiki/File:T-shirt_mocup_gray.jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/60/T-shirt_mocup_gray.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "processing": "Wikimedia 500px thumbnail; cropped bottom floor and photographer feet at y=500, preserving the full garment; JPEG conversion. No color change or generative edit.",
+        "attribution_text": "File:T-shirt mocup gray.jpg; EdaBojci; CC0; https://commons.wikimedia.org/wiki/File:T-shirt_mocup_gray.jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1006",
+      "name": "中性黑灰做旧直筒牛仔裤",
+      "aliases": [
+        "牛仔裤",
+        "直筒裤",
+        "长裤"
+      ],
+      "category": "裤装",
+      "price": 119.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/black-jeans.jpg",
+      "highlights": [
+        "黑灰做旧效果",
+        "直线裤装轮廓",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1006-S",
+          "attributes": {
+            "颜色": "黑灰",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1006-M",
+          "attributes": {
+            "颜色": "黑灰",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1006-L",
+          "attributes": {
+            "颜色": "黑灰",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1006-XL",
+          "attributes": {
+            "颜色": "黑灰",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "bottoms",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "black-jeans",
+        "author": "THOR",
+        "source": "https://commons.wikimedia.org/wiki/File:Jeans_BW_2_(3213391837).jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/75/Jeans_BW_2_%283213391837%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC BY 2.0",
+        "license_url": "https://creativecommons.org/licenses/by/2.0",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Jeans BW 2 (3213391837).jpg; THOR; CC BY 2.0; https://commons.wikimedia.org/wiki/File:Jeans_BW_2_(3213391837).jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1007",
+      "name": "中性白色基础圆领长袖T恤",
+      "aliases": [
+        "白色上衣",
+        "长袖T恤",
+        "圆领长袖"
+      ],
+      "category": "T恤/上衣",
+      "price": 79.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/white-longsleeve.jpg",
+      "highlights": [
+        "基础纯色圆领",
+        "白色长袖平铺照片",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1007-S",
+          "attributes": {
+            "颜色": "白色",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1007-M",
+          "attributes": {
+            "颜色": "白色",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1007-L",
+          "attributes": {
+            "颜色": "白色",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1007-XL",
+          "attributes": {
+            "颜色": "白色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "white-longsleeve",
+        "author": "EdaBojci",
+        "source": "https://commons.wikimedia.org/wiki/File:T-shirt_mocup_white.jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/e4/T-shirt_mocup_white.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "processing": "Wikimedia 500px thumbnail; cropped bottom floor and photographer feet at y=500, preserving the full garment; JPEG conversion. No color change or generative edit.",
+        "attribution_text": "File:T-shirt mocup white.jpg; EdaBojci; CC0; https://commons.wikimedia.org/wiki/File:T-shirt_mocup_white.jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1008",
+      "name": "中性米白色翻领长袖衬衫",
+      "aliases": [
+        "白衬衫",
+        "米白衬衫",
+        "通勤衬衫"
+      ],
+      "category": "衬衫",
+      "price": 129.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/ivory-shirt.jpg",
+      "highlights": [
+        "米白色翻领长袖",
+        "简洁纽扣门襟",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1008-S",
+          "attributes": {
+            "颜色": "米白色",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1008-M",
+          "attributes": {
+            "颜色": "米白色",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1008-L",
+          "attributes": {
+            "颜色": "米白色",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1008-XL",
+          "attributes": {
+            "颜色": "米白色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "ivory-shirt",
+        "author": "Lanvin",
+        "source": "https://commons.wikimedia.org/wiki/File:Dress_shirt_MET_2011.46_F.jpeg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Dress_shirt_MET_2011.46_F.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Dress shirt MET 2011.46 F.jpeg; Lanvin; The Metropolitan Museum of Art; CC0; https://commons.wikimedia.org/wiki/File:Dress_shirt_MET_2011.46_F.jpeg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1009",
+      "name": "中性砖橙色复古翻领长袖衬衫",
+      "aliases": [
+        "橙色衬衫",
+        "复古衬衫",
+        "长袖衬衫"
+      ],
+      "category": "衬衫",
+      "price": 139.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/orange-shirt.jpg",
+      "highlights": [
+        "砖橙色纯色衬衫",
+        "复古翻领轮廓",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1009-S",
+          "attributes": {
+            "颜色": "砖橙色",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1009-M",
+          "attributes": {
+            "颜色": "砖橙色",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1009-L",
+          "attributes": {
+            "颜色": "砖橙色",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1009-XL",
+          "attributes": {
+            "颜色": "砖橙色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "orange-shirt",
+        "author": "Manhattan",
+        "source": "https://commons.wikimedia.org/wiki/File:Shirt,_men%27s_(AM_2015.44.1-1).jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/09/Shirt%2C_men%27s_%28AM_2015.44.1-1%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Shirt, men's (AM 2015.44.1-1).jpg; Manhattan; Auckland War Memorial Museum Tāmaki Paenga Hira; CC BY 4.0; https://commons.wikimedia.org/wiki/File:Shirt,_men%27s_(AM_2015.44.1-1).jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1010",
+      "name": "女款蓝白条纹短袖上衣",
+      "aliases": [
+        "条纹上衣",
+        "蓝白上衣",
+        "短袖上衣"
+      ],
+      "category": "T恤/上衣",
+      "price": 89.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/striped-tee.jpg",
+      "highlights": [
+        "蓝白横条纹",
+        "短袖收腰轮廓",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1010-S",
+          "attributes": {
+            "颜色": "蓝白条纹",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1010-M",
+          "attributes": {
+            "颜色": "蓝白条纹",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1010-L",
+          "attributes": {
+            "颜色": "蓝白条纹",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1010-XL",
+          "attributes": {
+            "颜色": "蓝白条纹",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "striped-tee",
+        "author": "Unknown author Unknown author",
+        "source": "https://commons.wikimedia.org/wiki/File:Blouse_(AM_2015.51.2-1).jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/Blouse_%28AM_2015.51.2-1%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Blouse (AM 2015.51.2-1).jpg; Unknown author Unknown author; Auckland War Memorial Museum Tāmaki Paenga Hira; CC BY 4.0; https://commons.wikimedia.org/wiki/File:Blouse_(AM_2015.51.2-1).jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1011",
+      "name": "中性橙绿印花复古长袖衬衫",
+      "aliases": [
+        "印花衬衫",
+        "花衬衫",
+        "复古印花"
+      ],
+      "category": "衬衫",
+      "price": 159.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/floral-shirt.jpg",
+      "highlights": [
+        "橙绿多色印花",
+        "长袖翻领轮廓",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1011-S",
+          "attributes": {
+            "颜色": "橙绿印花",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1011-M",
+          "attributes": {
+            "颜色": "橙绿印花",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1011-L",
+          "attributes": {
+            "颜色": "橙绿印花",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1011-XL",
+          "attributes": {
+            "颜色": "橙绿印花",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "tops",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "floral-shirt",
+        "author": "Clacton and Frinton",
+        "source": "https://commons.wikimedia.org/wiki/File:Shirt,_man%27s_(AM_2016.80.1-4).jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Shirt%2C_man%27s_%28AM_2016.80.1-4%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Shirt, man's (AM 2016.80.1-4).jpg; Clacton and Frinton; Auckland War Memorial Museum Tāmaki Paenga Hira; CC BY 4.0; https://commons.wikimedia.org/wiki/File:Shirt,_man%27s_(AM_2016.80.1-4).jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    },
+    {
+      "product_id": "EC1012",
+      "name": "女款黑色垂领收腰连衣裙",
+      "aliases": [
+        "黑色连衣裙",
+        "黑裙",
+        "垂领连衣裙"
+      ],
+      "category": "裙装/吊带",
+      "price": 189.0,
+      "subtitle": "开放许可服装实拍 · 沙盒演示商品",
+      "image_url": "/static/images/catalog/black-dress.jpg",
+      "highlights": [
+        "黑色垂领设计",
+        "收腰及膝轮廓",
+        "照片为开放许可实拍；价格、库存和尺码为沙盒参数，不代表真实在售"
+      ],
+      "skus": [
+        {
+          "sku_id": "EC1012-S",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "S"
+          },
+          "stock": 6
+        },
+        {
+          "sku_id": "EC1012-M",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "M"
+          },
+          "stock": 12
+        },
+        {
+          "sku_id": "EC1012-L",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "L"
+          },
+          "stock": 9
+        },
+        {
+          "sku_id": "EC1012-XL",
+          "attributes": {
+            "颜色": "黑色",
+            "尺码": "XL"
+          },
+          "stock": 5
+        }
+      ],
+      "weight_ranges": [
+        {
+          "size": "S",
+          "min_weight_kg": 40,
+          "max_weight_kg": 50,
+          "stock_public": 6
+        },
+        {
+          "size": "M",
+          "min_weight_kg": 50,
+          "max_weight_kg": 62,
+          "stock_public": 12
+        },
+        {
+          "size": "L",
+          "min_weight_kg": 62,
+          "max_weight_kg": 76,
+          "stock_public": 9
+        },
+        {
+          "size": "XL",
+          "min_weight_kg": 76,
+          "max_weight_kg": 90,
+          "stock_public": 5
+        }
+      ],
+      "tryon_supported": true,
+      "tryon_category": "one-pieces",
+      "tryon_garment_photo_type": "flat-lay",
+      "image_attribution": {
+        "asset_id": "black-dress",
+        "author": "Museum photographer, dress by Emma Knuckey",
+        "source": "https://commons.wikimedia.org/wiki/File:Black_silk_dress_by_Emma_Knuckey.jpg",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/Black_silk_dress_by_Emma_Knuckey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "license": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0",
+        "processing": "Wikimedia thumbnail downloaded; EXIF orientation applied; JPEG conversion. No crop, color change or generative edit.",
+        "attribution_text": "File:Black silk dress by Emma Knuckey.jpg; Museum photographer, dress by Emma Knuckey; Auckland War Memorial Museum Tāmaki Paenga Hira; CC BY 4.0; https://commons.wikimedia.org/wiki/File:Black_silk_dress_by_Emma_Knuckey.jpg; Modified as described in processing."
+      },
+      "data_notice": "只有照片来自公开许可资源；商品名为中性描述，价格、库存和尺码均为虚构演示参数。照片不代表真实在售商品，也不代表作者或馆藏机构为本项目背书。"
+    }
+  ]
+}

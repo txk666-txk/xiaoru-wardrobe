@@ -1,0 +1,16 @@
+{
+    "2": {
+        "query_yueshen": {
+            "params": {
+                "embedding_api_key": "",
+                "embedding_base_url": "",
+                "embedding_model": "",
+                "query": "{{question}}",
+                "top_k": 5,
+                "where": {}
+            },
+            "include_history": true,
+            "allow_function_call": false
+        }
+    }
+}
