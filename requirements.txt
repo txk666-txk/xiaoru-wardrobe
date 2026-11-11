@@ -29,7 +29,7 @@ opencv-python
 psutil
 langchain
 langchain_openai
-langgraph
+langgraph>=1.2.11,<2
 bs4
 schedule
 # Fay's low-level MCP servers use the v1 decorator API. MCP v2 is a breaking

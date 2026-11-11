@@ -34,6 +34,7 @@ $pythonSuites = @(
     "test.test_styling",
     "test.test_styling_conversation",
     "test.test_styling_planner",
+    "test.test_styling_langgraph",
     "test.test_ecommerce_agent",
     "test.test_service_policy",
     "test.test_large_order_review",

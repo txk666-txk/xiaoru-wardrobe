@@ -1,16 +1,16 @@
 # 截图素材来源
 
-本目录的 `storefront.jpg`、`styling-chat.jpg` 和 `virtual-tryon.jpg` 用于说明项目界面与功能。它们是界面截图及模型生成示例，不是实际顾客、真实交易或真实试穿的记录。截图中的价格、库存、尺码和订单均为演示数据。
+本目录的 `storefront.png`、`styling-chat.png` 和 `virtual-tryon.jpg` 用于说明项目界面与功能。它们是界面截图及模型生成示例，不是实际顾客、真实交易或真实试穿的记录。截图中的价格、库存、尺码和订单均为演示数据。
 
 ## 界面与助手头像
 
 - 页面为本项目界面，代码来源及 GPL-3.0 说明见[根 README](../../README.md)与[许可证](../../LICENSE)。
-- 小如头像使用本项目自制的 [xiaoru-avatar.svg](../../gui/static/images/xiaoru-avatar.svg)。截图不包含本机受限 Live2D 模型及私人上传照片。
-- `storefront.jpg` 和 `styling-chat.jpg` 中的商品照片使用下述开放许可小样；不使用本机导入的商家商品照片。
+- `storefront.png` 和 `styling-chat.png` 是维护者替换的本机运行截图，包含另行配置的第三方 Live2D 形象和本机导入的商家商品图片；它们不属于下方开放许可服装小样。截图展示不代表取得了角色或商品图片的再分发许可，也不表示原品牌参与本项目。
+- 这些角色模型、贴图与本机商品目录的原始文件不随源码分发。干净克隆默认使用自制的 [xiaoru-avatar.svg](../../gui/static/images/xiaoru-avatar.svg) 和下方有逐图许可记录的服装小样。
 
 ## 开放许可服装照片
 
-完整逐图元数据、原图链接、下载版本、文件校验值与改动说明见 [public_fashion_sources.json](../../agent/data/public_fashion_sources.json)。截图仅将照片缩放并置于页面卡片中；本地图片的裁切、缩放与 JPEG 转换已分别记录。照片保持各自许可，不因出现在截图中而统一改标为 GPL。
+以下为仓库默认服装小样及 `virtual-tryon.jpg` 的服装来源，不用于说明前两张本机导入目录的商品图片。完整逐图元数据、原图链接、下载版本、文件校验值与改动说明见 [public_fashion_sources.json](../../agent/data/public_fashion_sources.json)。本地图片的裁切、缩放与 JPEG 转换已分别记录。照片保持各自许可，不因出现在截图中而统一改标为 GPL。
 
 - **gray-tee**：[File:T-shirt mocup gray.jpg](<https://commons.wikimedia.org/wiki/File:T-shirt_mocup_gray.jpg>)；作者/来源署名：EdaBojci；[CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.en)。
 - **black-jeans**：[File:Jeans BW 2 (3213391837).jpg](<https://commons.wikimedia.org/wiki/File:Jeans_BW_2_(3213391837).jpg>)；作者/来源署名：THOR；[CC BY 2.0](https://creativecommons.org/licenses/by/2.0)。

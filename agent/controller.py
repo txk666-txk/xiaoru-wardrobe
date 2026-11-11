@@ -220,7 +220,8 @@ class AgentController:
             calls = [self._tool_call(name, arguments, result) for name, arguments, result in outcome.executions]
             workflow_audit = outcome.audit
             metadata = {'decision_mode': 'model' if outcome.used_model else 'rule',
-                        'planner_fallback': outcome.fallback, 'fallback_reason': outcome.fallback_reason}
+                        'planner_fallback': outcome.fallback, 'fallback_reason': outcome.fallback_reason,
+                        'workflow_engine': outcome.workflow_engine, 'workflow_nodes': outcome.graph_nodes}
             route = RouteResult('styling', 'model_react' if outcome.used_model else
                                 ('react' if attachment_id else 'plan_and_solve'), route.confidence, {})
             if outcome.failed:

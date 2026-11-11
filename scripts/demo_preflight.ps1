@@ -109,7 +109,7 @@ if (Test-Path -LiteralPath $configPath) {
 
 if ($pythonExe) {
     $desktopModules = if ($startMode -eq "common") { @("PyQt5", "PyQt5.QtWebEngineWidgets") } else { @() }
-    $moduleList = @("flask", "requests", "websockets", "pyaudio", "mcp", "chromadb", "sentence_transformers") + $desktopModules
+    $moduleList = @("flask", "requests", "websockets", "pyaudio", "mcp", "langgraph.graph", "langsmith", "chromadb", "sentence_transformers") + $desktopModules
     & $pythonExe (Join-Path $PSScriptRoot "probe_python_modules.py") @moduleList
     if ($LASTEXITCODE -ne 0) {
         $errors.Add("One or more required Python modules are missing")

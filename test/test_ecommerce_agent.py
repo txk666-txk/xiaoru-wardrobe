@@ -359,14 +359,19 @@ class KnowledgeBaseTests(unittest.TestCase):
         self.assertTrue(all(source["url"].startswith("https://") for source in policies["sources"]))
         self.assertTrue(all(source["accessed_at"] == "2026-09-27" for source in policies["sources"]))
 
-        with (PROJECT_ROOT / "faymcp" / "data" / "mcp_tool_states.json").open("r", encoding="utf-8") as file:
-            states = json.load(file)["4"]
-        self.assertTrue(states["query_yueshen"])
-        self.assertFalse(states["ingest_yueshen"])
-        self.assertFalse(states["yueshen_stats"])
+        # Check the distributable defaults, not ignored, user-specific MCP state.
+        mcp_data = PROJECT_ROOT / "faymcp" / "data"
+        with (mcp_data / "mcp_servers.example.json").open("r", encoding="utf-8") as file:
+            servers = json.load(file)
+        self.assertTrue(servers)
+        self.assertTrue(all(server["autostart"] is False for server in servers))
+        self.assertTrue(all(not server["key"] for server in servers))
 
-        with (PROJECT_ROOT / "faymcp" / "data" / "mcp_prestart_tools.json").open("r", encoding="utf-8") as file:
-            self.assertEqual(json.load(file), {})
+        with (mcp_data / "mcp_prestart_tools.example.json").open("r", encoding="utf-8") as file:
+            prestart_tools = json.load(file)
+        self.assertTrue(set(prestart_tools).issubset({str(server["id"]) for server in servers}))
+        for tools in prestart_tools.values():
+            self.assertTrue(all(tool["allow_function_call"] is False for tool in tools.values()))
 
     def test_reset_script_rejects_path_traversal(self):
         with self.assertRaises(ValueError):

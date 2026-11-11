@@ -17,9 +17,12 @@
 
 未命中确定性电商路由的问题会回退到 Fay 原有 LLM 链路，但使用新的电商客服系统提示词。
 
-数字人对话式穿搭现在增加模型决策循环：配置好的 Fay 文本模型理解语义、补充条件并选择
+数字人对话式穿搭现在由 LangGraph StateGraph 编排：配置好的 Fay 文本模型理解语义、补充条件并选择
 看图/推荐工具；工具结果返回后，模型可继续决定下一步。商品候选、价格、预算、保留单品和
-照片归属仍由程序核验。每轮最多三个决策、两个工具；模型超时或输出无效时回退到规则流程。
+照片归属仍由程序核验。每轮最多三个决策、两个工具；模型超时或输出无效时在同一张图内回退到规则。
+图节点为 decide、execute_tool、step_limit 和 finalize，规则模式也经过该图；当前不启用
+checkpointer、自动重试或跨进程恢复。返回卡片元数据包含 workflow_engine 和 workflow_nodes，
+用于验证实际编排路径，不暴露完整内部图状态。详见[迁移说明](../docs/langgraph-styling.md)。
 这项升级接在原聊天、语音和商品卡链路中，概要与启动步骤见[项目 README](../README.md)。
 
 ## 目录说明
@@ -40,7 +43,7 @@
 - `fay_adapter.py`：接回 Fay 输入输出链路的薄适配层。
 - `tryon/`：虚拟试衣 Provider、安全图片校验、会话隔离和临时结果清理。
 - `styling/planner.py`：复用 Fay 文本模型，输出受校验的穿搭决策。
-- `styling/workflow.py`：有界模型/工具循环、多轮单品保留和局部替换、失败回退。
+- `styling/workflow.py`：真实 LangGraph 有界决策图、条件边、多轮单品保留和局部替换、失败回退。
 - `styling/engine.py`：确定性商品筛选、预算与真实降价约束，不让模型虚构商品。
 
 ## AI 虚拟试衣（可选）
@@ -147,6 +150,8 @@ Set-Location "D:\path\to\xiaoru-wardrobe"
 生产适配器默认启用穿搭的 `model_react`；它与上述确定性订单、物流、售后分支分别工作。
 将环境变量 `FAY_STYLING_PLANNER` 设为 `rule` 可显式切回规则穿搭流程；独立构造
 `AgentController()` 时默认使用规则，测试或其他集成若需要模型，应显式传入 planner。
+这里的 rule 仅关闭文本模型决策，不绕过 LangGraph。不要将继承的通用 LLM 文件里保留的
+旧图定义，作为本次业务图实际运行的证据；本次入口是 Controller → StylingWorkflow.run → graph.invoke。
 
 ## 服装视觉模型适配与评测
 
