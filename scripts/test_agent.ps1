@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$SkipUi,
     [string]$PythonExe = ""
 )
@@ -33,10 +33,16 @@ $pythonSuites = @(
     "test.test_styling_vision_sft",
     "test.test_styling",
     "test.test_styling_conversation",
+    "test.test_styling_color_constraints",
+    "test.test_styling_required_items",
+    "test.test_styling_revision",
     "test.test_styling_planner",
+    "test.test_styling_planner_diagnostics",
     "test.test_styling_langgraph",
     "test.test_ecommerce_agent",
     "test.test_service_policy",
+    "test.test_policy_rag",
+    "test.test_policy_rag_routing",
     "test.test_large_order_review",
     "test.test_commerce_backend",
     "test.test_workbench_security",

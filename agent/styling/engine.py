@@ -31,6 +31,15 @@ def group_of(product):
     return GROUPS.get(product.get("category"))
 
 
+def bottoms_kind_of(product):
+    """Use catalog categories to distinguish trousers from separate skirts."""
+    if product.get("category") == "裤装":
+        return "pants"
+    if product.get("category") == "裙装/吊带" and group_of(product) == "bottoms":
+        return "skirt"
+    return None
+
+
 def normalize_styling_text(text):
     text = str(text or '')[:500]
     digits = {'零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5,
@@ -93,12 +102,78 @@ def parse_feedback(text, current=None):
     match = match or re.search(r"(\d{2,5})\s*(?:元以内|元预算)", text)
     if match:
         result["budget"] = float(match[1])
+        result.pop("budget_unlimited", None)
+    if re.search(r"(?:预算|价格|价钱|费用|花费)(?:都)?\s*(?:不限|不限制|无上限|没有上限)|不(?:限|限制)\s*(?:预算|价格)|不考虑(?:预算|价格)", text):
+        result["budget_unlimited"] = True
+        result.pop("budget", None)
+    # A category-scoped exclusion is not a global dislike: white outerwear
+    # should still allow a white shirt. Strip matched spans before global rules.
+    group_words = {"tops": r"内搭|上衣|衬衫|T恤|短袖|卫衣|针织",
+                   "bottoms": r"裤子|裤装|长裤|短裤|牛仔裤|西裤|阔腿裤|工装裤|休闲裤|运动裤|卫裤|(?<!裙)裤|下装|裙子|半身裙|短裙|长裙",
+                   "outerwear": r"外套|大衣|夹克|羽绒服|棉服",
+                   "one-pieces": r"连衣裙|连体服", "shoes": r"鞋子|鞋",
+                   "accessory": r"配饰|包包"}
+    color_pattern = "[" + "".join(COLORS) + "]"
+    negative = r"不要|不想要|不喜欢|避开|排除|别选|别用|不用|不能是|不选|不穿|不是|不以"
+    scoped = {key: list(value) for key, value in result.get("excluded_colors_by_group", {}).items()}
+    global_text = text
+    for group, words in group_words.items():
+        patterns = (
+            rf"(?:{negative})\s*(?P<color>{color_pattern})色?\s*(?:为|作为|做|的)?\s*(?:{words})",
+            rf"(?:{words})\s*(?:{negative})\s*(?P<color>{color_pattern})色?",
+            rf"(?P<color>{color_pattern})色?\s*(?:的)?\s*(?:{words})\s*(?:{negative})",
+        )
+        for pattern in patterns:
+            for found in re.finditer(pattern, text):
+                scoped.setdefault(group, []).append(found['color'])
+                global_text = global_text.replace(found[0], " ")
+        if re.search(rf"(?:{words})(?:的)?颜色(?:不限|随意|都行)", text):
+            scoped.pop(group, None)
+    if scoped or "excluded_colors_by_group" in result:
+        result["excluded_colors_by_group"] = {key: list(dict.fromkeys(value))[:6]
+                                               for key, value in scoped.items()}
+    # A requested white pair of trousers is a local requirement, not a global
+    # preference for a white outfit. Exclusions have already been masked above.
+    required = {key: list(value) for key, value in result.get("required_colors_by_group", {}).items()}
+    for group, words in group_words.items():
+        matches = []
+        for pattern in (
+                rf"(?P<color>{color_pattern})色?\s*(?:的)?\s*(?:{words})",
+                rf"(?:{words})(?:的)?(?:颜色)?\s*(?:要|用|选|换成|改成|换为|改为|是|为)\s*(?P<color>{color_pattern})色?"):
+            matches.extend(re.finditer(pattern, global_text))
+        if matches:
+            # An explicit new color replaces the previous color for this group.
+            required[group] = [max(matches, key=lambda found: found.start())["color"]]
+        if re.search(rf"(?:{words})(?:的)?颜色(?:不限|随意|都行)", text):
+            required.pop(group, None)
+        for found in matches:
+            global_text = global_text.replace(found[0], " ")
+    if required or "required_colors_by_group" in result:
+        result["required_colors_by_group"] = required
+    bottom_mentions = []
+    for kind, words in (("pants", r"裤子|裤装|长裤|短裤|牛仔裤|西裤|阔腿裤|工装裤|休闲裤|运动裤|卫裤|(?<!裙)裤"),
+                        ("skirt", r"半身裙|短裙|长裙|裙子")):
+        for found in re.finditer(words, text):
+            # "不要裤子" refuses a category, whereas "不要黑色裤子" still
+            # requests trousers with a color restriction.
+            prefix = text[max(0, found.start() - 8):found.start()]
+            if not re.search(r"(?:不要|不想要|不用|不选|不穿|别选|不是)\s*$", prefix):
+                bottom_mentions.append((found.start(), kind))
+    if bottom_mentions:
+        result["bottoms_kind"] = max(bottom_mentions)[1]
+    elif re.search(r"连衣裙|连体服", text) and not re.search(
+            r"(?:不要|不想要|不用|不选|不穿|别选|不是)\s*(?:连衣裙|连体服)", text):
+        # Do not let an old trousers request block a later dress request. The
+        # existing dress planner still decides whether dress options are viable.
+        result.pop("bottoms_kind", None)
+        if "required_colors_by_group" in result:
+            result["required_colors_by_group"].pop("bottoms", None)
     excluded, liked = list(result.get("excluded_colors", [])), list(result.get("colors", []))
     for color in COLORS:
-        if any(word + color in text for word in ("不要", "不喜欢", "避开", "排除")):
+        if any(word + color in global_text for word in ("不要", "不喜欢", "避开", "排除")):
             excluded.append(color)
             liked = [item for item in liked if item != color]
-        elif any(word + color in text for word in ("喜欢", "偏好", "换成")):
+        elif any(word + color in global_text for word in ("喜欢", "偏好", "换成")):
             liked.append(color)
             excluded = [item for item in excluded if item != color]
     if excluded or "excluded_colors" in result:
@@ -137,11 +212,15 @@ def aesthetic_advice(observation, options=None):
 
 
 def colors_of(product):
-    text = str(product.get("name", ""))
+    specification_colors = []
     for variant in product.get("variants", []):
         for key, value in variant.get("attributes", {}).items():
             if any(word in key for word in ("颜色", "配色", "色号")):
-                text += " " + str(value)
+                specification_colors.append(str(value))
+    # A fill material ("白鸭绒") or marketing phrase ("黑科技") is not
+    # the garment's color. Prefer actual SKU attributes whenever available.
+    text = " ".join(specification_colors) if specification_colors else str(product.get("name", ""))
+    text = re.sub(r"[白灰黑](?:鸭|鹅)绒|黑科技|红外(?:线)?|绿标|米兰|黄牛皮", "", text)
     return [color for color in COLORS if color in text]
 
 
@@ -187,6 +266,9 @@ class StylingEngine:
     def plan(self, options=None, observation=None, keep_ids=None, exclude_ids=None, max_item_prices=None, max_total_price=None):
         options = {"scene": "日常", "style": "简约", "budget": 300, "gender": "不限",
                    **clean_preferences({} if options is None else options)}
+        if options.get("budget_unlimited"):
+            options.pop("budget", None)
+        budget_limit = float("inf") if options.get("budget_unlimited") else options["budget"]
         if "season" in options and "temperature" not in options:
             options["temperature"] = {"春季": 18, "夏季": 28, "秋季": 16, "冬季": 8}[options["season"]]
         keep_ids, exclude_ids = set(keep_ids or []), set(exclude_ids or [])
@@ -206,14 +288,53 @@ class StylingEngine:
             raise StylingError("invalid_product", "所选商品不在当前目录，请刷新后重试")
         observed = (observation or {}).get("garments", [])
         owned = observed if (observation or {}).get("mode") == "garment" else []
+        def excluded_for(group):
+            return set(options.get("excluded_colors", [])) | set(
+                options.get("excluded_colors_by_group", {}).get(group, []))
+
+        def required_for(group):
+            return set(options.get("required_colors_by_group", {}).get(group, []))
+
+        # A photographed garment can satisfy a category only when it also
+        # satisfies this turn's hard constraints. Replace a conflicting or
+        # unverifiable category, while retaining the other owned garments.
+        retained_owned, replaced_owned_groups, constraint_notes = [], set(), []
+        for item in owned:
+            group, color = item.get("category"), item.get("color")
+            excluded = excluded_for(group)
+            required = required_for(group)
+            color_conflict = (excluded and (color not in COLORS or color in excluded)) or (
+                required and color not in required)
+            # Visual observations name the broad "bottoms" group, which cannot
+            # establish whether it is trousers or a separate skirt.
+            kind_unverified = group == "bottoms" and bool(options.get("bottoms_kind"))
+            if color_conflict or kind_unverified:
+                replaced_owned_groups.add(group)
+                label = LABELS.get(group, "单品")
+                if color_conflict:
+                    constraint_notes.append(
+                        f"照片中的{label}颜色无法核实，不能认定符合排除条件，本次重新筛选{label}。"
+                        if color not in COLORS else
+                        f"照片中原有的{color}色{label}与本次颜色要求冲突，本次重新筛选{label}。")
+                else:
+                    constraint_notes.append(f"照片中的{label}类型无法核实，本次按你指定的款式重新筛选。")
+            else:
+                retained_owned.append(item)
+        owned = retained_owned
         # Owned items replace that category rather than recommending a duplicate purchase.
         owned_groups = {item["category"] for item in owned if item["category"] in GROUPS.values()}
-        anchor_colors = {item.get("color") for item in observed if item.get("color") in COLORS}
+        anchor_items = owned if (observation or {}).get("mode") == "garment" else observed
+        anchor_colors = {item.get("color") for item in anchor_items if item.get("color") in COLORS}
         groups = ["tops", "bottoms"]
         if "one-pieces" in owned_groups:
             groups = []
         if options.get("temperature", 25) < 18 and "outerwear" not in groups:
             groups.append("outerwear")
+        requested_groups = (set(options.get("excluded_colors_by_group", {})) |
+                            set(options.get("required_colors_by_group", {})) | replaced_owned_groups)
+        if options.get("bottoms_kind"):
+            requested_groups.add("bottoms")
+        groups.extend(group for group in LABELS if group in requested_groups and group not in groups)
         groups = [group for group in groups if group not in owned_groups]
         keep_groups = {group_of(by_id[item]) for item in keep_ids}
         if len(keep_groups) != len(keep_ids):
@@ -236,7 +357,16 @@ class StylingEngine:
                     return False
             if gender == "中性" and ("男" in name or "女" in name) and "情侣" not in name and not ("男" in name and "女" in name):
                 return False
-            return not set(colors_of(product)) & set(options.get("excluded_colors", []))
+            excluded_colors = excluded_for(group_of(product))
+            required_colors = required_for(group_of(product))
+            product_colors = set(colors_of(product))
+            if (group_of(product) == "bottoms" and options.get("bottoms_kind") and
+                    bottoms_kind_of(product) != options["bottoms_kind"]):
+                return False
+            if required_colors and not product_colors & required_colors:
+                return False
+            # Unknown colors cannot prove that an explicit exclusion is met.
+            return (not excluded_colors or bool(product_colors)) and not product_colors & excluded_colors
 
         def score(product):
             name, colors = product["name"], set(colors_of(product))
@@ -265,7 +395,8 @@ class StylingEngine:
             raise StylingError("unavailable_selection", "保留商品与预算偏好或公开库存冲突，请取消保留或调整条件")
         kept = [by_id[item] for item in sorted(keep_ids)]
         group_plans = [groups]
-        if options["gender"] == "女款" and not owned_groups and not keep_groups:
+        if (options["gender"] == "女款" and not owned_groups and not keep_groups
+                and not requested_groups & {"tops", "bottoms"}):
             group_plans.append(["one-pieces"] + (["outerwear"] if options.get("temperature", 25) < 18 else []))
         pools = {}
         for group in set(g for plan in group_plans for g in plan):
@@ -284,7 +415,7 @@ class StylingEngine:
             if not products or len({p["product_id"] for p in products}) != len(products):
                 continue
             total = round(sum(p["price"] for p in products), 2)
-            if total <= min(options["budget"], max_total_price if max_total_price is not None else options["budget"]):
+            if total <= min(budget_limit, max_total_price if max_total_price is not None else budget_limit):
                 palette = set().union(*(set(colors_of(p)) for p in products)) | anchor_colors
                 harmony = 4 if palette and len(palette - NEUTRALS) <= 1 else -4 * max(0, len(palette - NEUTRALS) - 2)
                 possible.append((sum(score(p) for p in products) + harmony, total, products))
@@ -302,7 +433,8 @@ class StylingEngine:
                                   else f"作为{LABELS.get(card['group'], '单品')}搭配，优先考虑配色和预算。")
             reason = f"围绕{options['scene']}场景，优先筛选标题中与{options['style']}相关的款式，新增商品参考合计 ¥{total:.2f}。"
             if owned:
-                reason = "保留照片中已有衣服，只补充其余品类。" + reason
+                reason = "保留照片中符合本次要求的已有衣服，只补充其余品类。" + reason
+            reason = "".join(constraint_notes) + reason
             palette = set().union(*(set(card["colors"]) for card in cards))
             if palette:
                 reason += "配色建议：" + "、".join(c + "色" for c in COLORS if c in palette) + "；可用鞋包呼应主色。颜色按目录资料初筛，请结合商品图片确认。"
@@ -316,10 +448,17 @@ class StylingEngine:
         if not outfits and not groups and owned and not kept:
             summary = "照片中的已有衣服已覆盖这套搭配，不必额外购买；可以调整场景或气温再看看是否需要外套。"
         elif not outfits:
-            summary = "当前目录未找到同时符合预算与偏好的搭配。可以调整配色或款式条件，也可以先穿已有衣服；不会推荐超预算的方案。"
+            summary = ("当前目录未找到符合指定单品、颜色和预算要求的搭配。可以调整条件后再试，不会擅自换成其他颜色或款式。"
+                       if options.get("required_colors_by_group") or options.get("bottoms_kind") else
+                       "当前目录未找到同时符合单品与配色要求的搭配；颜色不明的商品也不会冒充符合要求。可以调整条件或补充服装资料。"
+                       if options.get("budget_unlimited") else
+                       "当前目录未找到同时符合预算与偏好的搭配。可以调整配色或款式条件，也可以先穿已有衣服；不会推荐超预算的方案。")
         elif len(outfits) == 1:
             summary = "当前条件下找到一套搭配，可以调整预算或风格再看看其他选择。"
+        summary = "".join(constraint_notes) + summary
         return {"options": options, "outfits": outfits, "summary": summary,
+                "constraint_notes": constraint_notes,
+                "replaced_owned_groups": sorted(replaced_owned_groups),
                 "aesthetic_advice": aesthetic_advice(observation, options),
                 "observation": observation, "steps": ["确认需求", "检索商品", "预算与偏好筛选", "搭配规划", "核对价格与尺码"],
                 "notice": "搭配是审美建议；价格、库存与尺码请核对目录说明。照片不用于推算身体数据，生成图不等于真实合身效果。"}

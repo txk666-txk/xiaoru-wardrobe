@@ -1,0 +1,479 @@
+{
+  "project": "xiaoru-wardrobe",
+  "prepared_date": "2026-11-20",
+  "purpose": "Overlay existing complete repository; not a standalone distribution",
+  "verified_github_remote_baseline": false,
+  "copied_source_files": 53,
+  "validation": {
+    "previous_python_tests_passed": 407,
+    "previous_ui_tests_passed": 26,
+    "copy_hashes_match": true,
+    "credential_scan_findings": 0,
+    "original_git_index_unchanged": true
+  },
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 1472,
+      "sha256": "8fd0f0954c81fbdb074751fc28d7177c06fb495ce90e2cf618d6938458855930",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 35823,
+      "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "README.md",
+      "bytes": 16106,
+      "sha256": "18f0067d60c5742eb45082451aa06323685d0f1337a61df4bf46541fac541833",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/README.md",
+      "bytes": 11451,
+      "sha256": "78624d814fb6e837e2e05849c4024813bfe0ece0ccd2cc599688e2f13843e50a",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/controller.py",
+      "bytes": 40892,
+      "sha256": "fc3d28843e7a0cd1eba5a82a9c627da96ff585e36e6b7eaee3a0e69581c7386d",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/data/policies.json",
+      "bytes": 11451,
+      "sha256": "646b3735e750b8cf78029895c795a2dccfeba5d0c355437adc5a5e224aa55456",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "agent/data/public_fashion_sources.json",
+      "bytes": 13078,
+      "sha256": "33738ff7d51a447fb1a5a6204926f83048f2bf8977d456e8174e8a3e06e21da9",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "agent/rag/__init__.py",
+      "bytes": 62,
+      "sha256": "99be40de37b5ed1182b642a1d43af3e82d05710c12fd5caa3e3371ab22744442",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/rag/answer.py",
+      "bytes": 6193,
+      "sha256": "33ce1c36b1dbe4c9ffdddae6fda81e3d5a173fe7c437c04a4b09f17b37316d06",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/rag/retriever.py",
+      "bytes": 4789,
+      "sha256": "cde37c745886fb36bedbc8b986cd0a4bd1688c468d0bbb3fc319db5a124f6f71",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/styling/engine.py",
+      "bytes": 30619,
+      "sha256": "a7b67ddd50267c6b65091be6887687c8d8e5895128a641d9f762a52792e47aed",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/styling/planner.py",
+      "bytes": 13958,
+      "sha256": "2ac6af3e94527a9bcf2782f5fafca6d76782be9e49611954caadb0c07be84fdb",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/styling/preferences.py",
+      "bytes": 5616,
+      "sha256": "82c9f1f7ec3a0332fcb2f0e92975c0e1b22cb6631a5494958bb08dc5abc6f94c",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/styling/service.py",
+      "bytes": 15193,
+      "sha256": "ecf833242d8dd19aedd28128124fb121bf3f4d93577a166227d8b80e657805f0",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/styling/workflow.py",
+      "bytes": 16812,
+      "sha256": "a17cae7cb9b9fd86799e9f56f881bda0d378926bc121626d7496e49174531702",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/tools/policy_tool.py",
+      "bytes": 3704,
+      "sha256": "cd821ad6580125fa72270b4beec0b6f3384af61226f198fdd56b511f9c7d1ef4",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "agent/tools/styling_tool.py",
+      "bytes": 5619,
+      "sha256": "18fad9490e518108f23fb36171ec99160928c18b8bc7aa3d9043f3fd12c64a0e",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "assets/screenshots/LICENSE-FASHN-Apache-2.0.txt",
+      "bytes": 11026,
+      "sha256": "d3d48102851b3bf5533a42571977cf7f635a6599b64b61d31ebd594fbf5f6f18",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "assets/screenshots/SOURCES.md",
+      "bytes": 6451,
+      "sha256": "2d56a791b4f40b6872e5c1a5af6c5088a476807156cdf80af950ab05bcf02ff8",
+      "included_for": [
+        "differs_from_previous_local_export",
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "assets/screenshots/storefront.jpg",
+      "bytes": 788723,
+      "sha256": "f3a94e85383185e49c5281148faeaff983daaafd2b5123264362d7f517d0c6bc",
+      "included_for": [
+        "differs_from_previous_local_export",
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "assets/screenshots/styling-chat.jpg",
+      "bytes": 197879,
+      "sha256": "198f90fb63fc0fa74addf7c401229b778fc93a903d5a374315511d0579d20ee9",
+      "included_for": [
+        "differs_from_previous_local_export",
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "assets/screenshots/virtual-tryon.jpg",
+      "bytes": 128281,
+      "sha256": "5cc344ce84dd2f4758f53145b56b7880e83a69c8a593d41222ca18c14ddb7006",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "docs/github-rag-update.md",
+      "bytes": 3157,
+      "sha256": "b95ef30fb5c7f55602e2bd7d317c9691a58978a0c2a4245ba65c33076daf08b0",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "docs/langgraph-styling.md",
+      "bytes": 6612,
+      "sha256": "ab0d6a6c0f0c014ebad25c08c441fde1478673c11c014c6ce43a369417042d77",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "docs/policy-rag.md",
+      "bytes": 4490,
+      "sha256": "b40b06154118fc49d896b93058f0ec54607a5a5543ce628f81430c0322c9354e",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "docs/styling-graph.mmd",
+      "bytes": 584,
+      "sha256": "ad515f859fe725931df803270d32f6ba6fe118cb582c40c32f6cf71580f03549",
+      "included_for": [
+        "current_working_changes"
+      ]
+    },
+    {
+      "path": "docs/styling-runtime-check.md",
+      "bytes": 4411,
+      "sha256": "1a5324938d2dc65c110b0edcb97f07e80331c4a481c5c34a6cc9d32053418b7a",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "faymcp/data/mcp_prestart_tools.example.json",
+      "bytes": 394,
+      "sha256": "4e1646f926b3113ea6831909ddcdbb8bc91e220074842f642abe3a54eeb8297e",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "faymcp/data/mcp_servers.example.json",
+      "bytes": 1085,
+      "sha256": "11e45bdac855bb7cd743a06439f1a07ff3121a4f7b8594e96b6cc912abb616cf",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "gui/avatar_assets.py",
+      "bytes": 1719,
+      "sha256": "3c64d492d9484c1a98e009c5a9f7aabc0993e9532215aff610e1df31bd10b0ab",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "gui/static/css/styling.css",
+      "bytes": 12444,
+      "sha256": "d58116a85cb9e79a22617098ea71a95c958b7bc16033104d1cadae9ec6d538f8",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "gui/templates/index.html",
+      "bytes": 62968,
+      "sha256": "d745f32b925b0eaecf10d85e08e2a655b4672e4f708954873713905545ea6832",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "requirements.lock.txt",
+      "bytes": 3406,
+      "sha256": "69044b36c1c50898b3095d3d555a78d4701e0a90eb0392f19f636f1ab638b8ce",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 848,
+      "sha256": "25a04252f0bc2ff34f89683e6af053a89fd703007cd4f086864bc0bb88cd4b83",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "scripts/demo_preflight.ps1",
+      "bytes": 5488,
+      "sha256": "78f8004f16ff5bb9bf538b9921b67b3bf3324659951165ba2d9c3c4da33452d3",
+      "included_for": [
+        "current_working_changes"
+      ]
+    },
+    {
+      "path": "scripts/evaluate_policy_rag.py",
+      "bytes": 6023,
+      "sha256": "42cb66d295f7603e6f22214f6710c51e3af968dfb366e486343d8a059c956ce9",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "scripts/inspect_styling_graph.py",
+      "bytes": 1556,
+      "sha256": "db8e1aefd648618bc7b968a10a23b7324cbcc0e31f87319563300307808cc5fd",
+      "included_for": [
+        "current_working_changes"
+      ]
+    },
+    {
+      "path": "scripts/probe_python_modules.py",
+      "bytes": 526,
+      "sha256": "ee13030e173bf5cdc9472e6a7ec3bb3464b78b879ab42b112c27e2620bfd3b64",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "scripts/setup_policy_rag.py",
+      "bytes": 1101,
+      "sha256": "d2495bb13f822b968183bbc90e120f77d58b7fb7ccaacb9811a053330862563c",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "scripts/test_agent.ps1",
+      "bytes": 2523,
+      "sha256": "67139aeafcaac5bedb7db01e68eb24aed3fcde435f31f2d2353a3b726b24c7d8",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/fixtures/policy_rag_cases.json",
+      "bytes": 7317,
+      "sha256": "85aed57618efaaddfe279aa6fd17a9230d3ebf9eb3dc4e0f640b1172ccdb5a06",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_ecommerce_agent.py",
+      "bytes": 19762,
+      "sha256": "02e6d70953efb90441dd0783f85cd3a1640b060d22a5b3b0d12f0ad9b235531c",
+      "included_for": [
+        "current_working_changes"
+      ]
+    },
+    {
+      "path": "test/test_policy_rag.py",
+      "bytes": 5537,
+      "sha256": "e516a740bd162c4f919747b85b7ac739a48ab23b1c7ddbf3f88c608e64710b92",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_policy_rag_routing.py",
+      "bytes": 3586,
+      "sha256": "57fe0c2670f33c488fc74ec1af7bc8f728779aac572da2337445fe6b2bd75069",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_release_assets.py",
+      "bytes": 6992,
+      "sha256": "ffa482b34e5da2d8aeaabf45e4b3c4fa815b5c73501e518214cecc0621f17e9e",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_styling.py",
+      "bytes": 17503,
+      "sha256": "25ba2bf882d7a5521b062e38ffb6575df1d7f5deefbfe5acfa2ea3cb4408e0ad",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "test/test_styling_color_constraints.py",
+      "bytes": 10910,
+      "sha256": "4703bd77cf0d32fb88c584176cec693d5aba75b74d8b396a8c4af7486f7bfbb5",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_styling_conversation.py",
+      "bytes": 15140,
+      "sha256": "ec8e62d4c94bacb75442f8faa868af38a8709380f6ae0c5932a6b4df6c2a6299",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "test/test_styling_langgraph.py",
+      "bytes": 16468,
+      "sha256": "13cc42c576ce76c3bbb03fdc7704a6dedbe9ef5fe55570a123930420965d74f1",
+      "included_for": [
+        "current_working_changes"
+      ]
+    },
+    {
+      "path": "test/test_styling_planner.py",
+      "bytes": 17941,
+      "sha256": "91ee9096b7352f9aabf18db707d719b85cdd67bcc9cb1a28bc44e911560e77dc",
+      "included_for": [
+        "public_dependency_or_license"
+      ]
+    },
+    {
+      "path": "test/test_styling_planner_diagnostics.py",
+      "bytes": 6914,
+      "sha256": "5d3a1795243f69ca8c31252305e93b6556e79bf0b01c24e3bfa91b2833c7c970",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_styling_required_items.py",
+      "bytes": 8399,
+      "sha256": "aeeae35523c010f96067a9ee76fa84f577361a41b9a28cafa1db9b33b655e92b",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    },
+    {
+      "path": "test/test_styling_revision.py",
+      "bytes": 5706,
+      "sha256": "ee8ff5646f0790bcb49d4a6ebccdad00ae4b27088bf9fb657daa23aa459028bc",
+      "included_for": [
+        "current_working_changes",
+        "differs_from_previous_local_export"
+      ]
+    }
+  ],
+  "generated_package_documents": [
+    "docs/GitHub更新上传说明-20261120.md",
+    "docs/github-upload-manifest-20261120.json"
+  ]
+}

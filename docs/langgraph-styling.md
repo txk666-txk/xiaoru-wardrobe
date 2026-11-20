@@ -92,7 +92,7 @@ python scripts/evaluate_styling_agent.py --mode rule
 
 本次没有把试衣生成塞进决策图：它仍由推荐卡按钮进入原试衣接口。ASR、TTS、Live2D、上传校验、隐私清理、商城沙盒和GPU推理服务继续沿用。
 
-政策工具仍是本地JSON关键词检索，不因使用LangGraph而变成向量RAG；本次没有加入模型微调、多Agent协作、持久检查点、人工中断恢复或可靠任务队列。
+政策工具现已另行接入本地向量检索，详见[政策 RAG 说明](policy-rag.md)；它不依赖此处的 LangGraph 穿搭图。项目没有加入模型微调、多Agent协作、持久检查点、人工中断恢复或可靠任务队列。
 
 ## 面试时怎样讲
 

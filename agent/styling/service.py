@@ -13,7 +13,7 @@ from pathlib import Path
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .engine import StylingEngine, parse_feedback
-from .preferences import PreferenceStore, clean_preferences
+from .preferences import PreferenceStore, clean_preferences, merge_preferences
 from .vision import LocalVision, StylingError
 
 MAX_UPLOAD = 64 * 1024 * 1024
@@ -135,7 +135,7 @@ class StylingService:
             raise StylingError("invalid_mode", "请选择本人照片、已有衣服或文字推荐")
         if mode != "text" and consent is not True:
             raise StylingError("photo_consent_required", "看图前请同意本机处理照片")
-        options = {**self.preferences.get(owner), **clean_preferences({} if options is None else options)}
+        options = merge_preferences(self.preferences.get(owner), {} if options is None else options)
         # Validate before sending photos to the model; fail explicitly, never invent observations.
         if mode != "text":
             status = self.vision.status()
@@ -227,7 +227,7 @@ class StylingService:
                 raise StylingError("style_not_complete", "请等待搭配分析完成", 409)
             result = job["result"]
             incoming = payload.get("options", {})
-            base = {**result["options"], **clean_preferences(incoming)}
+            base = merge_preferences(result["options"], incoming)
             # Removing a supplied measurement/temperature clears its old value too.
             for field in ("height_cm", "weight_kg", "temperature"):
                 if field in incoming and incoming[field] in (None, ""):

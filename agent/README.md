@@ -39,7 +39,8 @@ checkpointer、自动重试或跨进程恢复。返回卡片元数据包含 work
 - `../scripts/import_local_fashion.py`：从已有快照导入可试穿服装，不修改源目录；导入 JSON、图片与来源映射留在本机并被 Git 忽略，命令见[项目 README](../README.md#可选导入已有本机服装目录)。
 - `data/products.json`：保留兼容旧测试与工具的数据，不作为工作台默认服装库。
 - `data/*.json`：本地演示订单、物流和政策数据。
-- `data/knowledge/*.md`：本地电商知识文件；可供后续 RAG 索引，目前政策工具直接检索 JSON。
+- `data/knowledge/*.md`：本地电商知识文件，目前没有自动导入政策检索索引；政策检索的实际来源是 `data/policies.json`。
+- `rag/`：基于本地中文向量模型的政策分句检索和受限证据选择；命中后使用完整政策原文，未安装模型时回退关键词查询。详情见[政策 RAG 说明](../docs/policy-rag.md)。
 - `fay_adapter.py`：接回 Fay 输入输出链路的薄适配层。
 - `tryon/`：虚拟试衣 Provider、安全图片校验、会话隔离和临时结果清理。
 - `styling/planner.py`：复用 Fay 文本模型，输出受校验的穿搭决策。

@@ -15,7 +15,9 @@ from .preferences import clean_preferences
 
 
 GROUPS = {"tops", "bottoms", "outerwear", "one-pieces"}
-FIELDS = {"scene", "budget", "season", "fit", "style", "gender", "colors", "excluded_colors"}
+FIELDS = {"scene", "budget", "budget_unlimited", "season", "fit", "style", "gender", "colors",
+          "excluded_colors", "excluded_colors_by_group"}
+CONTEXT_FIELDS = FIELDS | {"required_colors_by_group", "bottoms_kind"}
 ACTIONS = {"ask", "inspect_outfit_photo", "recommend_outfit", "opinion", "pause", "handoff"}
 VALIDATION_CODES = {
     'oversized_decision', 'invalid_json', 'invalid_action', 'invalid_updates',
@@ -41,20 +43,33 @@ SYSTEM_PROMPT = """你是 Fay 数字人客服的穿搭工具决策器。只输�
 - pause：用户暂停搭配或不想买时选它。
 - handoff：当前话题不属于穿搭（如问天气或打招呼）时交还 Fay 通用对话。
 updates 仅填写本轮明确表达的变动，每项必须有 evidence 中逐字摘录的本轮原文。
+options 已有且本轮没变的条件不要重复放进 updates；例如历史预算不限，本轮只换裤子，
+不能再次填写 budget_unlimited。没有条件变动时 updates 和 evidence 都用空对象。
 保留上下文里未被修改的条件；不要推测预算、性别、身高、体型，不从照片推算身体数据。
-可更新 scene(日常/通勤/面试/约会/旅行/运动)、budget(30..10000)、season(春季/夏季/秋季/冬季)、
+可更新 scene(日常/通勤/面试/约会/旅行/运动)、budget(30..10000)、budget_unlimited(布尔值)、season(春季/夏季/秋季/冬季)、
 fit(宽松/合身/修身)、style(休闲/简约/通勤/运动/复古/街头)、gender(不限/男款/女款/中性)、
 colors/excluded_colors(黑白灰蓝棕米绿红粉紫黄的数组)。
+用户明确说“价格不限/预算不限”时设 budget_unlimited=true，不再追问预算，不沿用旧金额。
+按部位排除颜色用 excluded_colors_by_group，例如“不以黑色为裤子，不以白色为外套，不以红色为内搭”
+对应 {"bottoms":["黑"],"outerwear":["白"],"tops":["红"]}，不要误当作全身禁用三种颜色。
 预算只能来自顾客本轮金额；“便宜一些”的实际降价由程序处理，不编造一个新预算。
 保留/解除保留可用 keep_groups/release_groups，某个部位便宜些用 cheaper_groups，换款用 replace_groups，取值
 tops/bottoms/outerwear/one-pieces。group_evidence 必须逐字摘录本轮相关短语。
 例：用户说“下装别动，上面换个实惠的”，keep_groups=["bottoms"]，cheaper_groups=["tops"]。
 group_evidence 的键是品类名，不是 keep_groups 等字段名。例如上述情况必须写：
 "group_evidence":{"bottoms":"下装别动","tops":"上面换个实惠的"}。
+例：本轮说“保留上衣，帮我再换一个白色裤子”，且场景预算已知，可输出：
+{"action":"recommend_outfit","updates":{"colors":["白"]},"evidence":{"colors":"白色裤子"},
+"keep_groups":["tops"],"replace_groups":["bottoms"],
+"group_evidence":{"tops":"保留上衣","bottoms":"再换一个白色裤子"}}。
 不得索取照片路径、会话ID，不得调用下单、付款、退款、删文件等工具。
 格式：{"action":"ask","updates":{},"evidence":{},"question_fields":["budget"],
 "keep_groups":[],"release_groups":[],"cheaper_groups":[],"replace_groups":[],"group_evidence":{}}
 """
+
+
+SYSTEM_PROMPT += "\noptions.required_colors_by_group 和 bottoms_kind 是程序确认的指定颜色与裤裙类型，" \
+                 "只读并保留，不要放进 updates，也不能用全局 colors 改写它们。\n"
 
 
 class PlannerError(ValueError):
@@ -66,11 +81,34 @@ def failure_code(error):
     import requests
     if isinstance(error, PlannerError) and str(error) in VALIDATION_CODES:
         return str(error)
-    if isinstance(error, requests.Timeout):
+    if isinstance(error, (requests.Timeout, TimeoutError)):
         return 'provider_timeout'
+    if isinstance(error, requests.ConnectionError):
+        return 'provider_connection_error'
     if isinstance(error, requests.HTTPError):
+        status = getattr(error.response, 'status_code', None)
+        if status == 429:
+            return 'provider_rate_limited'
+        if status in {401, 403}:
+            return 'provider_auth_error'
         return 'provider_http_error'
     return 'planner_unavailable'
+
+
+def fallback_notice(code):
+    """Describe the safe failure category, never the provider's raw exception."""
+    explanation = {
+        'provider_timeout': '模型响应超时',
+        'provider_rate_limited': '模型接口繁忙',
+        'provider_auth_error': '模型接口认证失败，请检查配置',
+        'provider_unconfigured': '模型接口尚未配置',
+        'provider_connection_error': '模型接口连接失败',
+        'provider_http_error': '模型接口连接异常',
+    }.get(code)
+    if explanation is None:
+        explanation = ('本次模型结果未通过校验' if code in VALIDATION_CODES or code == 'invalid_provider_content'
+                       else '本轮未完成模型决策')
+    return explanation + '，本轮按已确认条件继续处理。'
 
 
 @dataclass(frozen=True)
@@ -109,7 +147,11 @@ def parse_decision(raw, text):
         quote = evidence.get(key)
         if not isinstance(quote, str) or not quote.strip() or quote not in text:
             raise PlannerError("ungrounded_update")
-    cleaned = clean_preferences(updates)
+    from .vision import StylingError
+    try:
+        cleaned = clean_preferences(updates)
+    except StylingError as exc:
+        raise PlannerError('invalid_updates') from exc
     if set(cleaned) != set(updates):
         raise PlannerError("empty_update")
     questions = raw.get("question_fields", [])
@@ -166,8 +208,11 @@ class ConfiguredStylingPlanner:
         with requests.post(base.rstrip('/') + '/chat/completions', json=body,
                            headers=headers, timeout=(3, 20)) as response:
             response.raise_for_status()
-            result = response.json()
-        content = result['choices'][0]['message']['content']
+            try:
+                result = response.json()
+                content = result['choices'][0]['message']['content']
+            except (ValueError, KeyError, IndexError, TypeError) as exc:
+                raise PlannerError('invalid_provider_content') from exc
         if not isinstance(content, str):
             raise PlannerError("invalid_provider_content")
         return content
@@ -175,6 +220,11 @@ class ConfiguredStylingPlanner:
 
 def configured_planner():
     return None if os.getenv('FAY_STYLING_PLANNER', 'model').lower() in {'rule', 'off', '0'} else ConfiguredStylingPlanner()
+
+
+def missing_requirements(options):
+    return [key for key in ('scene', 'budget')
+            if key not in options and not (key == 'budget' and options.get('budget_unlimited'))]
 
 
 def public_context(*, text, options, observation, current, available, waiting, personal_asked, photo_pending):
@@ -187,13 +237,13 @@ def public_context(*, text, options, observation, current, available, waiting, p
     return {
         'text': ('[本次身体数据已脱敏]' if waiting == ['profile'] and text.strip().rstrip('。！').isdigit()
                  else redact_body_measurements(text)),
-        'options': {key: value for key, value in options.items() if key in FIELDS},
+        'options': {key: value for key, value in options.items() if key in CONTEXT_FIELDS},
         'profile_provided': any(key in options for key in ('height_cm', 'weight_kg', 'body_type')),
         'observation': {'garments': garments} if observation else None,
         'photo_pending': photo_pending, 'available_actions': available,
-        'missing_fields': [key for key in ('scene', 'budget') if key not in options],
+        'missing_fields': missing_requirements(options),
         'profile_question_allowed': bool(not personal_asked and 'ask' in available and
-            not any(key not in options for key in ('scene', 'budget'))),
+            not missing_requirements(options)),
         'waiting': waiting, 'personal_asked': personal_asked,
         'current_outfit': [{'group': item['group'], 'price': item.get('price')}
                            for item in items[0]['items']] if items else [],

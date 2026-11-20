@@ -43,12 +43,15 @@ class AgentController:
         memory: SessionMemory | None = None,
         reflection: ReflectionGuardrail | None = None,
         styling_planner=None,
+        policy_answerer=None,
     ) -> None:
         self.router = router or Router()
         self.registry = registry or ToolRegistry()
         self.memory = memory or SessionMemory()
         self.reflection = reflection or ReflectionGuardrail()
         self.styling_planner = styling_planner
+        from .rag.answer import PolicyAnswerer
+        self.policy_answerer = policy_answerer or PolicyAnswerer()
 
     @staticmethod
     def _tool_call(name: str, arguments: dict, result: dict) -> dict:
@@ -193,12 +196,14 @@ class AgentController:
                 bare = re.fullmatch(r'\s*(\d{2,5}(?:\.\d+)?)\s*(?:元|块)?\s*[。！]?\s*', text)
                 if bare and waiting == ['budget']:
                     options['budget'] = float(bare[1])
+                    options.pop('budget_unlimited', None)
                 elif bare and 'profile' in waiting and 120 <= float(bare[1]) <= 220:
                     options['height_cm'] = float(bare[1])
                 from .styling.preferences import clean_preferences
                 amount = re.search(r'(?<!\d)(\d{2,5}(?:\.\d+)?)\s*(?:元|块)(?!以内|预算)', text)
                 if amount and ('budget' in waiting or 'scene' in options) and 'budget' not in parse_feedback(text):
                     options['budget'] = float(amount[1])
+                    options.pop('budget_unlimited', None)
                 # A season correction replaces the old estimated temperature unless actual degrees are supplied.
                 if 'season' in parse_feedback(text) and not re.search(r'度|℃', text):
                     options.pop('temperature', None)
@@ -209,7 +214,8 @@ class AgentController:
             skip = any(word in text for word in ('跳过', '不提供', '不想提供', '不想说', '不方便', '直接推荐', '你决定', '你看着办', '按默认', '随便', '都行'))
             if skip:
                 options.setdefault('scene', '日常')
-                options.setdefault('budget', 300)
+                if not options.get('budget_unlimited'):
+                    options.setdefault('budget', 300)
             opinion_only = any(word in text for word in ('只评价', '只看配色', '不推荐商品', '好看吗'))
             from .styling.workflow import StylingWorkflow
             outcome = StylingWorkflow(self.registry, self.styling_planner).run(
@@ -222,6 +228,9 @@ class AgentController:
             metadata = {'decision_mode': 'model' if outcome.used_model else 'rule',
                         'planner_fallback': outcome.fallback, 'fallback_reason': outcome.fallback_reason,
                         'workflow_engine': outcome.workflow_engine, 'workflow_nodes': outcome.graph_nodes}
+            if outcome.fallback:
+                from .styling.planner import fallback_notice
+                metadata['planner_notice'] = fallback_notice(outcome.fallback_reason)
             route = RouteResult('styling', 'model_react' if outcome.used_model else
                                 ('react' if attachment_id else 'plan_and_solve'), route.confidence, {})
             if outcome.failed:
@@ -409,14 +418,20 @@ class AgentController:
             audit=outcome.audit,
         )
 
-    def _handle_policy(self, text: str, route: RouteResult) -> AgentResponse:
+    def _handle_policy(self, text: str, route: RouteResult, retrieved=None) -> AgentResponse:
         args = {"query": text, "concise": True}
-        result = self.registry.execute("query_policy", **args)
+        result = retrieved if retrieved is not None else self.registry.execute("query_policy", **args)
+        answer, generation = self.policy_answerer.answer(text, result)
+        data = result.get("data") or {}
         return self._finalize(
             route=route,
-            text=result["message"],
+            text=answer,
             tool_calls=[self._tool_call("query_policy", args, result)],
-            evidence=result.get("data") or {},
+            evidence=data,
+            presentation={"kind": "policy", "retrieval": data.get("retrieval", {}),
+                          "generation": generation, "sources": data.get("sources", [])},
+            audit=["政策检索: " + data.get("retrieval", {}).get("mode", "unknown"),
+                   "政策回答: " + generation["mode"]],
         )
 
     def _handle_after_sales(
@@ -693,6 +708,33 @@ class AgentController:
             return self._handle_after_sales(text, user_id, route, demo_session_id)
         if route.intent == "after_sales_action":
             return self._handle_high_risk_action(text, user_id, route, demo_session_id, memory_user_id)
+
+        # Only general questions reach the semantic fallback. Product, logistics,
+        # order, styling and write-operation routes have already been dispatched.
+        # No broad LLM intent classification and no extra network call for chit-chat.
+        # General dialogue has no policy intent guaranteed by the router. A
+        # semantic resemblance alone must not turn chit-chat or secret-seeking
+        # instructions into an authoritative policy answer. Use an explicit
+        # commerce/support anchor and a stricter score for this fallback only.
+        policy_context = any(word in (text or "") for word in (
+            "寄回", "退回", "拆开包装", "不合心意", "定做", "收货",
+            "客服", "顾客", "店铺", "折扣", "抵扣", "两张券", "寄出",
+            "款项", "退钱", "真人工作人员", "核实身份", "最少收集",
+        ))
+        secret_request = bool(re.search(
+            r"(?:告诉我|输出|泄露|给我).*(?:管理员密码|系统提示词|API.?KEY|密钥)",
+            text or "", re.IGNORECASE,
+        ))
+        if (route.intent == "general" and policy_context and not secret_request
+                and len((text or "").strip()) >= 6):
+            result = self.registry.execute("query_policy", query=text, concise=True)
+            retrieval = (result.get("data") or {}).get("retrieval", {})
+            hits = retrieval.get("hits") or []
+            score = hits[0].get("score", 0) if hits else 0
+            if (result.get("ok") and retrieval.get("mode") == "hybrid"
+                    and isinstance(score, (int, float)) and score >= 0.58):
+                policy_route = RouteResult("policy_query", "rag", 0.80, route.entities)
+                return self._handle_policy(text, policy_route, retrieved=result)
 
         return AgentResponse(
             handled=False,

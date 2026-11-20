@@ -8,6 +8,7 @@ from pathlib import Path
 from .vision import COLORS, STYLES, StylingError
 
 SCENES = ("日常", "通勤", "面试", "约会", "旅行", "运动")
+COLOR_GROUPS = ("tops", "bottoms", "outerwear", "one-pieces", "shoes", "accessory")
 
 
 def clean_preferences(payload):
@@ -28,6 +29,25 @@ def clean_preferences(payload):
             if not isinstance(values, list) or len(values) > 6 or any(value not in COLORS for value in values):
                 raise StylingError("invalid_preferences", "请选择有效颜色，最多六种")
             result[key] = list(dict.fromkeys(values))
+    for color_field in ("excluded_colors_by_group", "required_colors_by_group"):
+        if color_field not in payload:
+            continue
+        groups = payload[color_field]
+        if not isinstance(groups, dict) or any(key not in COLOR_GROUPS for key in groups):
+            raise StylingError("invalid_preferences", "请提供有效的单品颜色限制")
+        result[color_field] = {}
+        for group, values in groups.items():
+            if not isinstance(values, list) or len(values) > 6 or any(value not in COLORS for value in values):
+                raise StylingError("invalid_preferences", "单品排除颜色最多六种，且必须为有效颜色")
+            result[color_field][group] = list(dict.fromkeys(values))
+    if "bottoms_kind" in payload:
+        if not isinstance(payload["bottoms_kind"], str) or payload["bottoms_kind"] not in {"pants", "skirt"}:
+            raise StylingError("invalid_preferences", "请提供有效的裤装或半身裙类型")
+        result["bottoms_kind"] = payload["bottoms_kind"]
+    if "budget_unlimited" in payload:
+        if not isinstance(payload["budget_unlimited"], bool):
+            raise StylingError("invalid_preferences", "预算不限必须为布尔值")
+        result["budget_unlimited"] = payload["budget_unlimited"]
     for key, bounds in {"budget": (30, 10000), "temperature": (-30, 50),
                         "height_cm": (120, 220), "weight_kg": (30, 200)}.items():
         if payload.get(key) not in (None, ""):
@@ -38,7 +58,21 @@ def clean_preferences(payload):
             except (TypeError, ValueError):
                 raise StylingError("invalid_preferences", f"{key} 超出有效范围")
             result[key] = value
+    if result.get("budget_unlimited"):
+        result.pop("budget", None)
     return result
+
+
+def merge_preferences(current, updates):
+    """An explicit new numeric budget replaces 'unlimited', and vice versa."""
+    clean = clean_preferences(updates)
+    result = {**(current or {}), **clean}
+    for color_field in ("excluded_colors_by_group", "required_colors_by_group"):
+        if clean.get(color_field):
+            result[color_field] = {**(current or {}).get(color_field, {}), **clean[color_field]}
+    if "budget" in clean and not clean.get("budget_unlimited"):
+        result.pop("budget_unlimited", None)
+    return clean_preferences(result)
 
 
 class PreferenceStore:
@@ -66,7 +100,8 @@ class PreferenceStore:
         if consent is not True:
             raise StylingError("preference_consent_required", "保存偏好前请明确同意；本次推荐无需保存")
         allowed = {key: value for key, value in clean_preferences(payload).items()
-                   if key in {"style", "fit", "gender", "colors", "excluded_colors", "budget"}}
+                   if key in {"style", "fit", "gender", "colors", "excluded_colors", "budget",
+                              "budget_unlimited", "excluded_colors_by_group", "required_colors_by_group", "bottoms_kind"}}
         with self._connect() as db:
             db.execute("INSERT OR REPLACE INTO style_preferences VALUES (?,?)",
                        (owner, json.dumps(allowed, ensure_ascii=False)))

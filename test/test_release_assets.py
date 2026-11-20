@@ -90,6 +90,31 @@ class ReleaseAvatarTests(unittest.TestCase):
         self.assertEqual(context['live2d_model'], 'xiaoru_1')
         self.assertFalse(context['live2d_assets_available'])
 
+    def test_only_installed_model_is_selected_without_configuration(self):
+        self.install_model('local_character')
+        with patch.dict(os.environ, {'FAY_LIVE2D_MODEL': ''}):
+            context = avatar_template_context(self.static)
+        self.assertEqual(context['live2d_model'], 'local_character')
+        self.assertTrue(context['live2d_assets_available'])
+
+    def test_missing_explicit_model_does_not_silently_select_another(self):
+        self.install_model('local_character')
+        with patch.dict(os.environ, {'FAY_LIVE2D_MODEL': 'chosen_but_missing'}):
+            context = avatar_template_context(self.static)
+        self.assertEqual(context['live2d_model'], 'chosen_but_missing')
+        self.assertFalse(context['live2d_assets_available'])
+
+    def test_multiple_models_require_a_choice_unless_default_is_installed(self):
+        self.install_model('character_one')
+        self.install_model('character_two')
+        with patch.dict(os.environ, {'FAY_LIVE2D_MODEL': ''}):
+            context = avatar_template_context(self.static)
+            self.assertFalse(context['live2d_assets_available'])
+            self.install_model('xiaoru_1')
+            context = avatar_template_context(self.static)
+        self.assertEqual(context['live2d_model'], 'xiaoru_1')
+        self.assertTrue(context['live2d_assets_available'])
+
     def test_local_customer_portrait_is_optional_and_independent_of_live2d(self):
         self.assertEqual(avatar_template_context(self.static)['customer_avatar_asset'],
                          'images/xiaoru-avatar.svg')

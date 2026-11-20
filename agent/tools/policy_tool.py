@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 
 from .common import load_json, tool_result
 
@@ -9,11 +10,15 @@ class PolicyTool:
     name = "query_policy"
     description = "查询退换货、质量售后、退款、优惠、隐私等政策"
 
-    def __init__(self) -> None:
+    def __init__(self, *, retriever=None) -> None:
         payload = load_json("policies.json")
         self.dataset_label = payload.get("dataset_label", "演示店铺政策")
         self.policies = payload.get("policies", [])
         self.sources = {item["source_id"]: item for item in payload.get("sources", [])}
+        if retriever is None and os.getenv("FAY_POLICY_RAG", "on").lower() not in {"off", "0"}:
+            from agent.rag.retriever import PolicyRetriever
+            retriever = PolicyRetriever(self.policies)
+        self.retriever = retriever
 
     @staticmethod
     def _tokens(text: str) -> list[str]:
@@ -31,6 +36,7 @@ class PolicyTool:
         return score
 
     def execute(self, *, query: str = "", policy_id: str | None = None, concise: bool = False, **_: object) -> dict:
+        retrieval = {"mode": "explicit_id" if policy_id else "keyword"}
         if policy_id:
             matches = [item for item in self.policies if item.get("policy_id") == policy_id]
         else:
@@ -40,12 +46,19 @@ class PolicyTool:
                 reverse=True,
             )
             matches = [item for score, item in scored if score > 0][:1 if concise else 2]
+            if self.retriever and query.strip():
+                semantic, retrieval = self.retriever.search(
+                    query, keyword_scores={item['policy_id']: score for score, item in scored},
+                    limit=1 if concise else 2)
+                if semantic is not None:
+                    matches = semantic
 
         if not matches:
             return tool_result(
                 ok=False,
                 error="policy_not_found",
                 message="我暂时没有检索到对应政策。你可以补充说明是退货、质量问题、退款到账、优惠活动还是隐私问题。",
+                data={"policies": [], "sources": [], "retrieval": retrieval},
             )
 
         sections = []
@@ -68,5 +81,5 @@ class PolicyTool:
         return tool_result(
             ok=True,
             message=message,
-            data={"policies": matches, "sources": source_items},
+            data={"policies": matches, "sources": source_items, "retrieval": retrieval},
         )

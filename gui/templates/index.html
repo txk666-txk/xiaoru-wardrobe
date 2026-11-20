@@ -376,7 +376,8 @@
 <div v-if="(parseThinkContent(item.content).thinkContent || item.thinkLoading) && item.thinkExpanded" class="think-content-inline">[[parseThinkContent(item.content).thinkContent]]</div>
                       <div class="message-text markdown-body" v-html="renderMarkdown(parseThinkContent(item.content).mainContent)"></div>
                       <div v-if="item.presentation" class="chat-style-advice">
-                        <div v-if="item.presentation.tool_calls && item.presentation.tool_calls.length" class="chat-style-tool-evidence"><i class="el-icon-check" aria-hidden="true"></i>[[item.presentation.tool_calls.some(call => call.tool === 'inspect_outfit_photo') ? '本地看图' : '需求规划']]<span v-if="item.presentation.plan && item.presentation.plan.outfits.length"> → 商品检索 · 预算核对</span></div>
+                        <div v-if="item.presentation.planner_notice" class="chat-style-planner-notice" role="status">[[item.presentation.planner_notice]]</div>
+                        <div v-if="item.presentation.tool_calls && item.presentation.tool_calls.length" class="chat-style-tool-evidence"><i class="el-icon-check" aria-hidden="true"></i>[[item.presentation.tool_calls.some(call => call.tool === 'inspect_outfit_photo') ? '本地看图' : item.presentation.decision_mode === 'model' ? '模型决策' : '条件筛选']]<span v-if="item.presentation.plan && item.presentation.plan.outfits.length"> → 商品检索 · 条件核对</span></div>
                         <div v-if="item.presentation.plan" class="chat-style-outfits">
                           <details v-for="(outfit, oi) in item.presentation.plan.outfits" :key="oi" :open="oi === 0" class="chat-style-look">
                             <summary><strong>[[outfit.title]]</strong><span>¥[[outfit.total.toFixed(2)]]</span></summary>

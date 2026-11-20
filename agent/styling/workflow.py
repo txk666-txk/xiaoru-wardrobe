@@ -4,13 +4,18 @@ from __future__ import annotations
 from copy import deepcopy
 from contextvars import Context
 import re
+import logging
+import time
 from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
-from .planner import StylingDecision, PlannerError, parse_decision, public_context, failure_code
+from .planner import StylingDecision, PlannerError, parse_decision, public_context, failure_code, missing_requirements
+from .preferences import merge_preferences
+
+logger = logging.getLogger(__name__)
 
 
 GROUP_WORDS = {'tops': ('上衣', '衬衫', 'T恤', '上装', '上面'),
@@ -147,7 +152,7 @@ class StylingWorkflow:
         request = state['request']
         options = dict(state['options'])
         conversation = request.conversation
-        missing = [key for key in ('scene', 'budget') if key not in options]
+        missing = missing_requirements(options)
         ask_profile = (conversation.get('collected') and not conversation.get('personal_asked') and not request.skip and not (
             (options.get('season') or options.get('temperature') is not None) and
             (options.get('height_cm') or options.get('fit') or options.get('body_type'))))
@@ -166,6 +171,7 @@ class StylingWorkflow:
                 available.append('opinion')
         updates = {'decision_count': state['decision_count'] + 1, 'graph_nodes': state['graph_nodes'] + ['decide']}
         if state['model_active']:
+            started = time.perf_counter()
             try:
                 # Graph state contains trusted identity; the model sees only this allowlisted view.
                 context = public_context(text=request.text, options=options, observation=state['observation'],
@@ -174,21 +180,37 @@ class StylingWorkflow:
                 candidate = parse_decision(self.planner.decide(context), context['text'])
                 if candidate.action not in available:
                     raise PlannerError('action_unavailable')
-                proposed = {**options, **candidate.updates}
+                proposed = merge_preferences(options, candidate.updates)
                 if 'budget' in candidate.updates:
                     numbers = [float(n) for n in re.findall(r'(?<!\d)\d+(?:\.\d+)?', context['text'])]
                     if candidate.updates['budget'] not in numbers:
                         raise PlannerError('invented_budget')
                 from .engine import parse_feedback
                 explicit = parse_feedback(request.text)
+                if candidate.updates.get('budget_unlimited') and not explicit.get('budget_unlimited'):
+                    raise PlannerError('invented_budget')
                 for key in candidate.updates:
-                    if key in explicit and key != 'budget':
+                    if key in explicit and key not in {'budget', 'excluded_colors', 'excluded_colors_by_group'}:
                         proposed[key] = explicit[key]
                 if 'budget' in explicit and re.search(r'预算|不超过|以内|控制在', request.text):
-                    proposed['budget'] = explicit['budget']
+                    proposed = merge_preferences(proposed, {'budget': explicit['budget']})
+                # Hard constraints survive a model that omits or rewrites them.
+                constraints = {key: explicit[key] for key in ('budget_unlimited',) if key in explicit}
+                proposed = merge_preferences(proposed, constraints)
+                for key in ('excluded_colors', 'excluded_colors_by_group'):
+                    # options already includes this turn's explicit additions and
+                    # releases. Model deltas may add restrictions, not erase them.
+                    if key == 'excluded_colors_by_group':
+                        scoped = dict(proposed.get(key, {}))
+                        for group, colors in options.get(key, {}).items():
+                            scoped[group] = list(dict.fromkeys(colors + scoped.get(group, [])))[:6]
+                        if key in proposed or key in options:
+                            proposed[key] = scoped
+                    elif key in options:
+                        proposed[key] = list(dict.fromkeys(options[key] + proposed.get(key, [])))[:6]
                 if 'season' in candidate.updates and 'temperature' not in explicit:
                     proposed.pop('temperature', None)
-                still_missing = [key for key in ('scene', 'budget') if key not in proposed]
+                still_missing = missing_requirements(proposed)
                 if candidate.action == 'recommend_outfit' and still_missing:
                     raise PlannerError('missing_requirements')
                 if candidate.action == 'ask':
@@ -205,6 +227,9 @@ class StylingWorkflow:
                     updates[key] = state[key] | set(getattr(candidate, key))
             except Exception as exc:
                 reason = failure_code(exc)
+                # No exception text, user text, identity, images or credentials.
+                logger.warning('Styling planner fallback reason=%s action=%s elapsed_ms=%d',
+                               reason, decision.action, round((time.perf_counter() - started) * 1000))
                 updates.update(model_active=False, fallback=True, fallback_reason=reason,
                     audit=state['audit'] + ['PlannerFallback: ' + reason + '；改用规则流程'])
         updates.update(action=decision.action,

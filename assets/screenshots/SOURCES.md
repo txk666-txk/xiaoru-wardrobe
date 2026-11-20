@@ -1,16 +1,18 @@
 # 截图素材来源
 
-本目录的 `storefront.png`、`styling-chat.png` 和 `virtual-tryon.jpg` 用于说明项目界面与功能。它们是界面截图及模型生成示例，不是实际顾客、真实交易或真实试穿的记录。截图中的价格、库存、尺码和订单均为演示数据。
+本目录的 `storefront.jpg`、`styling-chat.jpg` 和 `virtual-tryon.jpg` 用于说明项目界面与功能。它们是界面截图及模型生成示例，不是实际顾客、真实交易或真实试穿的记录。截图中的价格、库存、尺码和订单均为演示数据。
 
 ## 界面与助手头像
 
 - 页面为本项目界面，代码来源及 GPL-3.0 说明见[根 README](../../README.md)与[许可证](../../LICENSE)。
-- `storefront.png` 和 `styling-chat.png` 是维护者替换的本机运行截图，包含另行配置的第三方 Live2D 形象和本机导入的商家商品图片；它们不属于下方开放许可服装小样。截图展示不代表取得了角色或商品图片的再分发许可，也不表示原品牌参与本项目。
-- 这些角色模型、贴图与本机商品目录的原始文件不随源码分发。干净克隆默认使用自制的 [xiaoru-avatar.svg](../../gui/static/images/xiaoru-avatar.svg) 和下方有逐图许可记录的服装小样。
+- `storefront.jpg` 和 `styling-chat.jpg` 由项目作者提供，分别展示本机商城 / Live2D 客服工作台、照片穿搭上传入口；原始截图仅转换为 JPEG，未重绘界面或替换其中的服装与角色。
+- `storefront.jpg` 包含本机配置的 Live2D 角色 `beierfasite_2`、配套头像和第三方商品参考照片，保留画面中原有标识。这些素材的权利归原权利人；截图不表示店铺合作、素材为原创或另行授予角色 / 商品图许可。角色运行库、模型、贴图、动作文件和完整本机商品图库不随仓库打包。
+- 新克隆未配置角色时使用自制的 [xiaoru-avatar.svg](../../gui/static/images/xiaoru-avatar.svg)。两张本机截图不代表干净克隆会自动带有相同角色和完整商品目录。第二张仅展示上传入口，不是视觉分析结果或准确率证据。
+- `virtual-tryon.jpg` 中的服装照片使用下述开放许可小样，人物输入来自 FASHN 官方示例；截图不包含用户私人上传照片。
 
 ## 开放许可服装照片
 
-以下为仓库默认服装小样及 `virtual-tryon.jpg` 的服装来源，不用于说明前两张本机导入目录的商品图片。完整逐图元数据、原图链接、下载版本、文件校验值与改动说明见 [public_fashion_sources.json](../../agent/data/public_fashion_sources.json)。本地图片的裁切、缩放与 JPEG 转换已分别记录。照片保持各自许可，不因出现在截图中而统一改标为 GPL。
+仓库自带服装小样的完整逐图元数据、原图链接、下载版本、文件校验值与改动说明见 [public_fashion_sources.json](../../agent/data/public_fashion_sources.json)。这些记录适用于公开小样及试衣示例，不适用于前两张截图中的本机第三方商品目录。试衣截图仅将输入照片缩放并置于页面中；本地服装图片的裁切、缩放与 JPEG 转换已分别记录。照片保持各自许可，不因出现在截图中而统一改标为 GPL。
 
 - **gray-tee**：[File:T-shirt mocup gray.jpg](<https://commons.wikimedia.org/wiki/File:T-shirt_mocup_gray.jpg>)；作者/来源署名：EdaBojci；[CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.en)。
 - **black-jeans**：[File:Jeans BW 2 (3213391837).jpg](<https://commons.wikimedia.org/wiki/File:Jeans_BW_2_(3213391837).jpg>)；作者/来源署名：THOR；[CC BY 2.0](https://creativecommons.org/licenses/by/2.0)。

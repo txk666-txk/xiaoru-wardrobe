@@ -38,5 +38,5 @@ mcp==1.29.0
 python-docx
 python-pptx
 chromadb
-sentence_transformers
+sentence-transformers>=6.0.0,<7
 pdfplumber

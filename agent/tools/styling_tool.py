@@ -15,9 +15,21 @@ def describe_plan(plan):
         lines.append(plan['summary'])
         return '\n'.join(lines)
     first = plan['outfits'][0]
+    labels = {'tops': '内搭', 'bottoms': '裤装', 'outerwear': '外套', 'one-pieces': '裙装',
+              'shoes': '鞋', 'accessory': '配饰'}
+    exclusions = [labels[group] + '避开' + '、'.join(color + '色' for color in colors)
+                  for group, colors in options.get('excluded_colors_by_group', {}).items() if colors]
+    if options.get('excluded_colors'):
+        exclusions.append('整套避开' + '、'.join(color + '色' for color in options['excluded_colors']))
+    if exclusions:
+        lines.append('这次按你的要求：' + '；'.join(exclusions) + '。')
+    lines.extend(plan.get('constraint_notes', [])[:2])
+    budget = '价格不限，不沿用之前的预算' if options.get('budget_unlimited') else f"在 ¥{options['budget']:.0f} 预算内"
     lines.append(f"按{options.get('season', '当前季节')}的{options['scene']}需求，挑了{len(plan['outfits'])}套，"
-                 f"第一套新增商品参考合计 ¥{first['total']:.2f}，在 ¥{options['budget']:.0f} 预算内。")
-    lines.append('商品卡在下方。可以说“裤子保留，上衣换一件”或“便宜一点”；价格与库存请核对目录说明。')
+                 f"第一套新增商品参考合计 ¥{first['total']:.2f}，{budget}。")
+    pieces = [labels.get(item['group'], '单品') + '：' + item['name'][:30] for item in first['items']]
+    lines.append('第一套是' + '；'.join(pieces) + '。')
+    lines.append('具体商品在下方，可直接试穿；颜色按目录资料筛选，请结合商品图确认。')
     return "\n".join(lines)
 
 
