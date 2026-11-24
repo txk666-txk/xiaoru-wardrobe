@@ -1966,7 +1966,7 @@ new Vue({
         const attachment = this.prepareChatStyleAttachment ? await this.prepareChatStyleAttachment() : null;
         if (attachment) send_data.styling_attachment_id = attachment;
         const previous = this.syncChatStylePresentation ? await this.styleRequest('/api/styling/conversation') : null;
-        if (attachment || /穿搭|搭配|搭一套|搭一身|配一套|配一身|季节|预算|保留|正式|花哨|宽松|跳过/.test(text)) {
+        if (attachment || /穿搭|搭配|搭一套|搭一身|配一套|配一身|(?:推荐|挑选?|选)\s*[一两二三1-3][套身](?:衣服|服装|行头)|季节|预算|保留|正式|花哨|宽松|跳过/.test(text)) {
           this.chatStylePending = true; this.chatStyleProgress = attachment ? '我正在本机看照片中的服装…' : '数字客服正在了解需求并选择合适的工具…';
           this.pollChatStylePresentation(previous && previous.revision);
         }

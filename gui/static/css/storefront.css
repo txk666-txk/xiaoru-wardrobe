@@ -105,18 +105,6 @@ body.page-storefront .storefront-global-header {
   font-size: 11px;
 }
 
-.storefront-demo-badge {
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  color: #513f15;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--store-yellow);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
-  box-shadow: 0 3px 8px rgba(80, 53, 9, 0.12);
-}
-
 .storefront-global-actions {
   gap: 8px;
 }
@@ -433,29 +421,6 @@ body.page-storefront .conversation-workspace.commerce-workspace {
 .storefront-view {
   min-height: 100%;
   padding: 18px;
-}
-
-.storefront-notice {
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  color: #5a5261;
-  font-size: 12px;
-  line-height: 1.55;
-  background: linear-gradient(110deg, #fff9e8, #fff4ec);
-  border: 1px solid #f0d59a;
-  border-left: 4px solid var(--store-yellow);
-  border-radius: 8px;
-  box-shadow: var(--store-shadow-soft);
-}
-
-.storefront-notice span {
-  margin-right: 7px;
-  padding: 2px 6px;
-  color: #604817;
-  font-size: 10px;
-  font-weight: 700;
-  background: #f5c45b;
-  border-radius: 999px;
 }
 
 .storefront-category-row {
@@ -1753,7 +1718,6 @@ body.page-storefront .el-textarea__inner:focus { border-color: var(--store-teal)
   }
 
   .storefront-brand-copy small,
-  .storefront-demo-badge,
   .storefront-global-actions { display: none; }
   .storefront-brand-mark { flex-basis: 30px; width: 30px; height: 30px; border-radius: 9px; }
   .storefront-brand-copy strong { max-width: 116px; font-size: 13px; }
@@ -1869,14 +1833,6 @@ body.page-storefront .storefront-global-header {
 
 .storefront-brand-copy small { color: #888; }
 
-.storefront-demo-badge {
-  color: #777;
-  background: #f6f6f6;
-  border: 1px solid #ededed;
-  border-radius: 3px;
-  box-shadow: none;
-}
-
 .storefront-source-button,
 .storefront-reference-link {
   color: #555;
@@ -1990,19 +1946,6 @@ body.page-storefront .conversation-workspace.commerce-workspace {
 .style-discovery strong { color: #333; font-size: 17px; letter-spacing: 0; }
 .style-discovery small { margin-top: 5px; color: #888; font-size: 12px; }
 .style-discovery .store-btn { position: relative; z-index: 1; min-height: 36px; padding: 0 14px; }
-
-.storefront-notice {
-  color: #777;
-  background: #fffaf2;
-  border-color: #f2e6d2;
-  border-left-color: #e9a94c;
-  box-shadow: none;
-}
-
-.storefront-notice span {
-  color: #966e2d;
-  background: #f8edda;
-}
 
 .storefront-category-row button {
   color: #666;

@@ -729,6 +729,9 @@ class AgentController:
                 "photo_pending": False,
             }
             semantic_route = self.intent_router.route(text, route, context=context)
+            if (semantic_route is not None and semantic_route.intent == "product_query"
+                    and route.intent == "styling" and Router.requests_complete_outfit(text)):
+                semantic_route = None
             if semantic_route is not None:
                 route = semantic_route
                 model_only_followup = False

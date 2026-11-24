@@ -89,6 +89,19 @@ class StylingColorConstraintTests(unittest.TestCase):
             self.assertEqual(len(coats), 1)
             self.assertEqual(coats[0]["product_id"], "BLACK-COAT")
 
+    def test_jacket_and_inner_layer_colors_follow_their_own_categories(self):
+        engine = StylingEngine(Catalog(self.products + [garment("BROWN-COAT", "外套", "棕色夹克", 220)]))
+        options = parse_feedback("帮我推荐一套衣服，上衣要棕色的外套，内搭要白色，裤子颜色随意，预算800",
+                                 {"required_colors_by_group": {"bottoms": ["红"]}})
+        self.assertEqual(options["required_colors_by_group"], {"outerwear": ["棕"], "tops": ["白"]})
+        outfits = engine.plan(options)["outfits"]
+        self.assertTrue(outfits)
+        for outfit in outfits:
+            items = {item["group"]: item["product_id"] for item in outfit["items"]}
+            self.assertEqual(items["outerwear"], "BROWN-COAT")
+            self.assertEqual(items["tops"], "WHITE-TOP")
+            self.assertIn(items["bottoms"], {"BLACK-PANTS", "BLUE-PANTS"})
+
     def test_dress_cannot_bypass_explicit_top_and_pants_request(self):
         engine = StylingEngine(Catalog([
             garment("DRESS", "裙装/吊带", "女款白色简约连衣裙", 20),

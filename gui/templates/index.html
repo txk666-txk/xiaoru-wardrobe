@@ -72,7 +72,6 @@
               <strong>小如的衣橱</strong>
               <small>穿搭顾问 · 数字人客服</small>
             </span>
-            <span class="storefront-demo-badge">演示商城 · 非真实交易</span>
           </div>
           <div class="storefront-global-actions">
             <button class="storefront-source-button" type="button" @click="sourcesDialogVisible = true"><i class="el-icon-document" aria-hidden="true"></i>规则来源</button>
@@ -108,7 +107,6 @@
                 <b aria-hidden="true">→</b>
                 <span><i class="el-icon-location-outline" aria-hidden="true"></i> [[storeAccount.customer_address || '河南省郑州市']]</span>
               </div>
-              <small>订单、物流和退款均在当前业务沙盒内流转</small>
             </section>
 
             <nav class="storefront-tabs" aria-label="商城功能">
@@ -136,10 +134,6 @@
                   <span>已选 [[styleCompareIds.length]] 件比较</span>
                   <button type="button" :disabled="styleCompareIds.length < 2" @click="compareStyleProducts">比较商品</button>
                   <button type="button" @click="styleCompareIds = []">清空</button>
-                </div>
-                <div class="storefront-notice">
-                  <span>数据说明</span>
-                  [[storeMeta.dataset_label || '虚构演示商品']]；价格、规格和库存仅用于本地流程演示。
                 </div>
                 <div class="storefront-category-row">
                   <button type="button" :class="{'active': productCategory === '全部'}" :aria-pressed="productCategory === '全部'" @click="productCategory = '全部'">全部</button>
@@ -245,7 +239,7 @@
                   <article v-for="record in visibleLogistics" :key="record.order_id" class="logistics-card">
                     <header>
                       <div><span>订单 [[displayOrderNo(record.order_id)]]</span><strong>[[record.status_text]]</strong></div>
-                      <div class="logistics-summary"><span>[[record.route && record.route.from ? record.route.from : storeAccount.store_address]] → [[record.route && record.route.to ? record.route.to : storeAccount.customer_address]]</span><small>业务沙盒配送流程</small></div>
+                      <div class="logistics-summary"><span>[[record.route && record.route.from ? record.route.from : storeAccount.store_address]] → [[record.route && record.route.to ? record.route.to : storeAccount.customer_address]]</span></div>
                     </header>
                     <div class="delivery-progress" aria-label="配送进度">
                       <span v-for="stage in deliveryStages(record.status)" :key="stage.label" :class="{'done': stage.done, 'current': stage.current}"><i></i><b>[[stage.label]]</b></span>
@@ -496,7 +490,7 @@
                 </div>
               </div>
               <div class="share-preview-footer">
-                业务沙盒客服记录 &nbsp;·&nbsp; 商品、订单与政策信息请以实时页面和正式规则为准
+                小如的衣橱 · 客服记录
               </div>
             </div>
           </div>
@@ -668,7 +662,7 @@
           <span class="dialog-product-icon">[[productCategoryIcon(selectedProduct.category)]]</span>
           <div><strong>[[selectedProduct.name]]</strong><small>单价 ¥[[formatMoney(selectedProduct.price)]]</small></div>
         </div>
-        <div class="storefront-dialog-notice">本单使用体验账户余额支付，并按杭州发货、河南收货的业务沙盒流程履约。</div>
+        <div class="storefront-dialog-notice">本单使用体验余额，不会产生实际扣款或发货。</div>
         <div v-if="selectedProduct" class="order-preview-form">
           <label v-if="selectedProduct.skus && selectedProduct.skus.length"><span>规格</span><el-select v-model="orderForm.sku_id" placeholder="请选择规格"><el-option v-for="sku in selectedProduct.skus" :key="sku.sku_id" :label="skuLabel(sku) + ' · 库存 ' + sku.stock" :value="sku.sku_id" :disabled="sku.disabled || sku.stock <= 0"></el-option></el-select></label>
           <div v-else class="order-no-sku-note">当前商品未提供可选规格，将按商品信息下单。</div>
@@ -715,7 +709,7 @@
       </el-dialog>
 
       <el-dialog title="规则与公开资料来源" :visible.sync="sourcesDialogVisible" width="680px" custom-class="storefront-dialog storefront-sources-dialog">
-        <div class="storefront-dialog-notice">法规是最低合规边界；演示商城的店铺政策不代表真实店铺规则。商品数据：[[storeMeta.snapshot_at ? formatStoreDateTime(storeMeta.snapshot_at) : (storeMeta.dataset_label || '以当前目录配置为准')]]。</div>
+        <div v-if="storeMeta.snapshot_at" class="storefront-dialog-notice">商品资料更新时间 [[formatStoreDateTime(storeMeta.snapshot_at)]]</div>
         <ol class="storefront-source-list">
           <li v-for="source in storefrontSources" :key="source.url || source.title"><div><strong>[[source.title]]</strong><small>[[source.publisher]]</small></div><a v-if="source.url" :href="source.url" target="_blank" rel="noopener noreferrer">查看原文 ↗</a></li>
         </ol>

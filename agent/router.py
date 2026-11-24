@@ -37,6 +37,7 @@ _LABELED_WEIGHT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _SLASH_MEASUREMENT_PATTERN = re.compile(r"(?<!\d)(\d{3}(?:\.\d+)?)\s*[/／]\s*(\d{2,3}(?:\.\d+)?)(?!\d)")
+_OUTFIT_REQUEST_PATTERN = re.compile(r"(?:推荐|挑选?|选|搭配?|配)(?:给我)?\s*[一两二三1-3][套身](?:衣服|服装|穿搭|行头)")
 _OPTIONAL_MEASUREMENTS = {
     "chest_cm": re.compile(r"胸围\s*(?:是|为|[:：])?\s*(\d{2,3}(?:\.\d+)?)\s*(?:cm|厘米)?", re.IGNORECASE),
     "shoulder_cm": re.compile(r"肩宽\s*(?:是|为|[:：])?\s*(\d{2,3}(?:\.\d+)?)\s*(?:cm|厘米)?", re.IGNORECASE),
@@ -90,6 +91,10 @@ class Router:
         return any(word in text for word in words)
 
     @staticmethod
+    def requests_complete_outfit(text: str) -> bool:
+        return bool(_OUTFIT_REQUEST_PATTERN.search(text))
+
+    @staticmethod
     def extract_entities(text: str) -> dict[str, str]:
         entities: dict[str, str] = {}
         order_match = _ORDER_PATTERN.search(text)
@@ -129,6 +134,8 @@ class Router:
         if not normalized:
             return RouteResult("general", "fallback", 0.0, entities)
 
+        complete_outfit = self.requests_complete_outfit(normalized)
+
         if self._contains_any(normalized, self._high_risk_phrases):
             if self._contains_any(normalized, self._consultation_markers):
                 return RouteResult("policy_query", "rag", 0.95, entities)
@@ -142,6 +149,7 @@ class Router:
                 self._order_words + self._logistics_words + self._after_sales_words,
             )
             and not self._contains_any(normalized, self._styling_markers)
+            and not complete_outfit
         ):
             return RouteResult("size_recommendation", "tool", 0.98, entities)
 
@@ -170,7 +178,7 @@ class Router:
         if has_after_sales:
             return RouteResult("after_sales", "plan_and_solve", 0.90, entities)
 
-        if self._contains_any(normalized, self._styling_markers) or any(word in normalized for word in ("保留裤子", "保留上衣", "保留外套", "太正式", "太花哨", "穿什么", "怎么穿", "穿衣建议", "这身好看", "照片穿着")) or (
+        if complete_outfit or self._contains_any(normalized, self._styling_markers) or any(word in normalized for word in ("保留裤子", "保留上衣", "保留外套", "太正式", "太花哨", "穿什么", "怎么穿", "穿衣建议", "这身好看", "照片穿着")) or (
             any(word in normalized for word in ("比较", "对比", "哪件更", "哪个更"))
             and len(_PRODUCT_PATTERN.findall(normalized)) >= 2
         ):

@@ -119,6 +119,10 @@ def parse_feedback(text, current=None):
                    "one-pieces": r"连衣裙|连体服", "shoes": r"鞋子|鞋",
                    "accessory": r"配饰|包包"}
     color_pattern = "[" + "".join(COLORS) + "]"
+    # Resolve the explicit garment type before matching the generic 上衣 label.
+    text = re.sub(rf"上衣\s*(?P<verb>要|用|选|换成|改成|是|为)\s*"
+                  rf"(?P<color>{color_pattern})色?\s*的?\s*(?P<coat>{group_words['outerwear']})",
+                  r"\g<coat>\g<verb>\g<color>色", text)
     negative = r"不要|不想要|不喜欢|避开|排除|别选|别用|不用|不能是|不选|不穿|不是|不以"
     scoped = {key: list(value) for key, value in result.get("excluded_colors_by_group", {}).items()}
     global_text = text

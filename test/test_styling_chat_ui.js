@@ -94,7 +94,7 @@ test('a fast WebSocket reply before HTTP acknowledgement cannot re-enable a stal
 });
 
 test('natural outfit requests synchronize tool cards without requiring a budget keyword', async () => {
-  for (const phrase of ['搭一套', '搭一身', '配一套', '配一身']) {
+  for (const phrase of ['搭一套', '搭一身', '配一套', '配一身', '推荐一套衣服，上衣要棕色的外套，内搭要白色，裤子颜色随意']) {
     const {ui, context} = fixture();
     ui.newMessage = '帮我' + phrase;
     ui.styleRequest = async () => ({revision:'before-request'});

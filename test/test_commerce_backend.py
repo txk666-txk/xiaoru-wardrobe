@@ -189,7 +189,7 @@ class PublicSnapshotProviderTests(unittest.TestCase):
                 self.assertNotIn("总库存 0", result["message"])
 
     def test_known_stock_keeps_zero_and_positive_values_distinct(self):
-        for stock, expected in ((0, "当前未显示可售库存"), (3, "目前有货")):
+        for stock, expected in ((0, "当前未显示可售库存"), (3, "商品资料显示有货")):
             with self.subTest(stock=stock):
                 tool = self.local_reference_tool([{
                     "product_id": "LOCAL-SHIRT", "name": "男款衬衫", "category": "衬衫", "price": 89,
@@ -198,13 +198,14 @@ class PublicSnapshotProviderTests(unittest.TestCase):
                 result = tool.execute(query="这款有货吗", product_id="LOCAL-SHIRT")
                 self.assertIn(expected, result["message"].splitlines()[0])
 
-    def test_local_reference_notice_never_claims_a_live_merchant_page(self):
+    def test_local_reference_details_avoid_repeating_demo_copy_and_live_claims(self):
         product = {"product_id": "LOCAL-SHIRT", "name": "男款衬衫", "category": "衬衫", "price": 89}
         for profile in ({"source_type": "local_fashion_reference"}, {"dataset_label": "本机服装参考快照"}):
             with self.subTest(profile=profile):
                 result = self.local_reference_tool([product], profile).execute(query="介绍这款", product_id="LOCAL-SHIRT")
-                self.assertIn("本机参考快照", result["message"])
-                self.assertIn("沙盒", result["message"])
+                self.assertIn("参考价", result["message"])
+                self.assertNotIn("本机参考快照", result["message"])
+                self.assertNotIn("沙盒", result["message"])
                 self.assertNotIn("实时", result["message"])
                 self.assertNotIn("先到商品页", result["message"])
 
@@ -278,7 +279,7 @@ class PublicSnapshotProviderTests(unittest.TestCase):
         )
         self.assertTrue(result["ok"])
         self.assertEqual(result["data"]["product_id"], first["product_id"])
-        self.assertIn("以商品页实时展示为准", result["message"])
+        self.assertIn("商品资料显示有货", result["message"])
         self.assertLessEqual(len(result["message"].splitlines()), 4)
 
     def test_product_reply_summarizes_variants_without_dumping_all_skus(self):

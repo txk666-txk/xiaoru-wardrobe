@@ -282,6 +282,19 @@ class ControllerSemanticRoutingTests(unittest.TestCase):
         order.assert_called_once()
         self.classifier.decide.assert_called_once()
 
+    def test_complete_outfit_survives_router_timeout_and_product_only_misclassification(self):
+        text = "帮我推荐一套衣服，上衣要棕色的外套，内搭要白色，裤子颜色随意"
+        self.assertEqual(Router().route(text).intent, "styling")
+        expected = AgentResponse(handled=True, text="整套搭配结果", intent="styling")
+        with patch.object(self.controller, "_handle_styling", return_value=expected) as styling:
+            self.classifier.decide.side_effect = TimeoutError()
+            self.assertIs(self.controller.handle(text), expected)
+            self.classifier.decide.side_effect = None
+            self.classifier.decide.return_value = decision("product_query")
+            self.assertIs(self.controller.handle(text), expected)
+        self.assertEqual(styling.call_count, 2)
+        self.registry.execute.assert_not_called()
+
     def test_known_styling_followup_is_classified_with_its_task_state(self):
         self.service.conversation.return_value = {"active": True, "waiting": ["budget"],
                                                    "options": {"scene": "通勤"}}

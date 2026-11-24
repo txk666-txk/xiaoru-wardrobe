@@ -146,19 +146,6 @@ class ProductTool:
             items.append("其余匹配规格可继续告诉我偏好后核对")
         return "；".join(items)
 
-    def _catalog_notice(self) -> str:
-        if isinstance(self.public_provider, DemoCatalogProvider):
-            if any(item.get("image_attribution") for item in self.products):
-                return "服装照片为开放许可实拍；价格、库存和尺码为沙盒演示参数，不代表真实在售。"
-            return "以上为虚构样例，不代表真实在售。"
-        profile = self.public_provider.get_store_profile()
-        reference_kind = " ".join(str(profile.get(field) or "") for field in ("source_type", "dataset_label")).lower()
-        if not profile.get("source_url") and any(
-            word in reference_kind for word in ("local", "reference", "本机", "本地", "参考", "快照")
-        ):
-            return "本机参考快照；交易仅在沙盒模拟，库存待核验，不代表真实在售。"
-        return "价格与库存以商品页实时展示为准。"
-
     def _public_recommendations(self, query: str, gender: str | None = None, filters: dict | None = None) -> dict | None:
         if self.public_provider is None or (not filters and not gender and not any(
             word in query for word in ("推荐", "挑一", "选一", "选几", "想买", "买件", "想找", "帮我挑", "帮我选")
@@ -235,7 +222,7 @@ class ProductTool:
         for _, product, matched in selected:
             reason = f"名称标注{'、'.join(matched[:2])}" if matched else f"属于{product.get('category', '相关')}品类"
             lines.append(f"- {self._short_name(product['name'], 34)}，参考价￥{product['price']:.2f}（{reason}）。")
-        lines.append(self._catalog_notice() + "你更偏好哪一款？")
+        lines.append("你更偏好哪一款？")
         return tool_result(ok=True, message="\n".join(lines), data={"items": [item[1] for item in selected]})
 
     def _public_product_result(self, query: str, product_id: str | None, gender: str | None = None,
@@ -277,7 +264,7 @@ class ProductTool:
                 ]
                 return tool_result(
                     ok=True,
-                    message="为你找到这些商品：\n" + "\n".join(lines) + "\n" + self._catalog_notice(),
+                    message="为你找到这些商品：\n" + "\n".join(lines),
                     data=search,
                 )
 
@@ -300,7 +287,6 @@ class ProductTool:
                 lines = [f"这款公开商品快照暂无已核实的{focus}选项。"]
             if unavailable:
                 lines.append("暂缺：" + "、".join(unavailable[:6]) + "。")
-            lines.append(self._catalog_notice())
             return tool_result(ok=True, message="\n".join(lines), data=product)
 
         price_text = "价格待核验"
@@ -311,7 +297,7 @@ class ProductTool:
 
         stock_values = [variant.get("stock_public") for variant in variants] if variants else [product.get("stock_total_public")]
         if any(stock is not None and int(stock) > 0 for stock in stock_values):
-            stock_text = "目前有货"
+            stock_text = "商品资料显示有货"
         elif any(stock is None for stock in stock_values):
             stock_text = "库存待核验"
         else:
@@ -347,7 +333,6 @@ class ProductTool:
         if len(lines) < 3 and not requested_attributes:
             lines.append("如果你告诉我用途、颜色偏好或身高体重，我可以继续帮你筛选。")
         lines = lines[:3]
-        lines.append(self._catalog_notice())
         return tool_result(ok=True, message="\n".join(lines), data=product)
 
     @staticmethod

@@ -107,7 +107,7 @@ class ToolTests(unittest.TestCase):
         for item in result["data"]["items"]:
             self.assertEqual(item["category"], "外套")
             self.assertLessEqual(item["price"], 300)
-        self.assertIn("虚构样例", result["message"])
+        self.assertNotIn("虚构样例", result["message"])
         self.assertNotIn("YZREF-", result["message"])
 
     def test_explicit_gender_filters_generic_recommendations(self):

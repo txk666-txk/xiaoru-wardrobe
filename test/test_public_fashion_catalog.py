@@ -109,7 +109,7 @@ class PublicFashionCatalogTests(unittest.TestCase):
             self.assertLessEqual(item["price"], 100)
             self.assertIn("中性", item["name"])
             self.assertTrue(item["tryon_supported"])
-        self.assertIn("沙盒", result["message"])
+        self.assertNotIn("沙盒", result["message"])
         specific = tool.execute(query="EC1005有货吗", product_id="EC1005")
         self.assertTrue(specific["ok"])
         self.assertIn(self.provider.get_product("EC1005")["name"], specific["message"])
