@@ -184,38 +184,43 @@ class ConfiguredStylingPlanner:
     bound the extra latency; workflow code supplies deterministic recovery.
     """
     def decide(self, context):
-        import requests
-        from utils import config_util as cfg
+        return request_model_decision(SYSTEM_PROMPT, context)
 
-        if cfg.system_config is None:
-            cfg.load_config()
-        base, model = cfg.gpt_base_url, cfg.gpt_model_engine
-        if not base or not model:
-            raise PlannerError("provider_unconfigured")
-        body = {"model": model, "stream": False, "temperature": 0,
-                "max_tokens": 800, "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": json.dumps(context, ensure_ascii=False)}]}
-        # Zhipu defaults to thinking even for a tiny routing decision. Only send
-        # its extension to verified models on that provider; e.g. GLM-5.3 rejects it.
-        if urlsplit(base).hostname == 'open.bigmodel.cn' and model.lower() in {
-                'glm-5', 'glm-5.1', 'glm-5.2', 'glm-5-turbo', 'glm-5v-turbo',
-                'glm-4.5', 'glm-4.5v', 'glm-4.6', 'glm-4.6v', 'glm-4.7'}:
-            body['thinking'] = {'type': 'disabled'}
-        headers = {"Content-Type": "application/json"}
-        if cfg.key_gpt_api_key:
-            headers['Authorization'] = 'Bearer ' + cfg.key_gpt_api_key
-        with requests.post(base.rstrip('/') + '/chat/completions', json=body,
-                           headers=headers, timeout=(3, 20)) as response:
-            response.raise_for_status()
-            try:
-                result = response.json()
-                content = result['choices'][0]['message']['content']
-            except (ValueError, KeyError, IndexError, TypeError) as exc:
-                raise PlannerError('invalid_provider_content') from exc
-        if not isinstance(content, str):
-            raise PlannerError("invalid_provider_content")
-        return content
+
+def request_model_decision(system_prompt, context, *, max_tokens=800, timeout=(3, 20)):
+    """Shared transport for bounded decisions using Fay's existing text settings."""
+    import requests
+    from utils import config_util as cfg
+
+    if cfg.system_config is None:
+        cfg.load_config()
+    base, model = cfg.gpt_base_url, cfg.gpt_model_engine
+    if not base or not model:
+        raise PlannerError("provider_unconfigured")
+    body = {"model": model, "stream": False, "temperature": 0,
+            "max_tokens": max_tokens, "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(context, ensure_ascii=False)}]}
+    # Zhipu defaults to thinking even for a tiny routing decision. Only send
+    # its extension to verified models on that provider; e.g. GLM-5.3 rejects it.
+    if urlsplit(base).hostname == 'open.bigmodel.cn' and model.lower() in {
+            'glm-5', 'glm-5.1', 'glm-5.2', 'glm-5-turbo', 'glm-5v-turbo',
+            'glm-4.5', 'glm-4.5v', 'glm-4.6', 'glm-4.6v', 'glm-4.7'}:
+        body['thinking'] = {'type': 'disabled'}
+    headers = {"Content-Type": "application/json"}
+    if cfg.key_gpt_api_key:
+        headers['Authorization'] = 'Bearer ' + cfg.key_gpt_api_key
+    with requests.post(base.rstrip('/') + '/chat/completions', json=body,
+                       headers=headers, timeout=timeout) as response:
+        response.raise_for_status()
+        try:
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise PlannerError('invalid_provider_content') from exc
+    if not isinstance(content, str):
+        raise PlannerError("invalid_provider_content")
+    return content
 
 
 def configured_planner():

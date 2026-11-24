@@ -44,12 +44,14 @@ class AgentController:
         reflection: ReflectionGuardrail | None = None,
         styling_planner=None,
         policy_answerer=None,
+        intent_router=None,
     ) -> None:
         self.router = router or Router()
         self.registry = registry or ToolRegistry()
         self.memory = memory or SessionMemory()
         self.reflection = reflection or ReflectionGuardrail()
         self.styling_planner = styling_planner
+        self.intent_router = intent_router
         from .rag.answer import PolicyAnswerer
         self.policy_answerer = policy_answerer or PolicyAnswerer()
 
@@ -154,7 +156,8 @@ class AgentController:
             presentation=presentation or {},
         )
 
-    def _handle_styling(self, text, user_id, owner, attachment_id=None, conversation_id=None, model_only_followup=False):
+    def _handle_styling(self, text, user_id, owner, attachment_id=None, conversation_id=None,
+                        model_only_followup=False, initial_updates=None):
         from .styling.service import get_styling_service
         from .styling.engine import parse_feedback, aesthetic_advice, normalize_styling_text
         from .styling.vision import StylingError
@@ -192,6 +195,10 @@ class AgentController:
                 service.update_conversation(owner, observation=None)
             try:
                 options = parse_feedback(text, options)
+                if initial_updates:
+                    from .styling.preferences import merge_preferences
+                    options = merge_preferences(options, initial_updates)
+                    options = merge_preferences(options, parse_feedback(text))
                 waiting = state.get('waiting', [])
                 bare = re.fullmatch(r'\s*(\d{2,5}(?:\.\d+)?)\s*(?:元|块)?\s*[。！]?\s*', text)
                 if bare and waiting == ['budget']:
@@ -289,6 +296,10 @@ class AgentController:
 
     def _handle_product(self, text: str, user_id: str, route: RouteResult) -> AgentResponse:
         args = {"query": text, "product_id": route.entities.get("product_id")}
+        if route.entities.get("gender"):
+            args["gender"] = route.entities["gender"]
+        if route.entities.get("product_filters"):
+            args["filters"] = route.entities["product_filters"]
         result = self.registry.execute("query_product", **args)
         data = result.get("data") or {}
         if isinstance(data, dict) and data.get("product_id"):
@@ -519,7 +530,8 @@ class AgentController:
         order_id = self._resolve_order_id(user_id, route)
         pending = self.memory.get_pending_action(memory_user_id)
         confirmation_match = self._confirmation_pattern.fullmatch((text or "").strip())
-        operation = next((word for word in ("退货", "退款", "取消", "地址") if word in text), None)
+        operation = route.entities.get("operation") or next(
+            (word for word in ("退货", "退款", "取消", "地址") if word in text), None)
         operation = operation or (pending or {}).get("operation", "退款")
 
         if confirmation_match and pending and pending.get("order_id"):
@@ -609,7 +621,19 @@ class AgentController:
             audit=["高风险操作：已核对订单，等待二次确认"],
         )
 
-    def handle(
+    def handle(self, text: str, *, user_id: str = "User", demo_session_id: str | None = None,
+               product_id: str | None = None, attachment_id: str | None = None,
+               conversation_id: str | None = None) -> AgentResponse:
+        memory_user_id = self._memory_user_id(user_id, demo_session_id)
+        with self.memory.turn_lock(memory_user_id):
+            response = self._handle(text, user_id=user_id, demo_session_id=demo_session_id,
+                                    product_id=product_id, attachment_id=attachment_id,
+                                    conversation_id=conversation_id)
+            if response.handled and response.text:
+                self.memory.remember_exchange(memory_user_id, text, response.text)
+            return response
+
+    def _handle(
         self,
         text: str,
         *,
@@ -651,6 +675,65 @@ class AgentController:
             if get_styling_service().latest(demo_session_id):
                 route = RouteResult("styling", "plan_and_solve", 0.95, route.entities)
         memory_user_id = self._memory_user_id(user_id, demo_session_id)
+        pending = self.memory.get_pending_action(memory_user_id)
+        confirmation_match = self._confirmation_pattern.fullmatch((text or "").strip())
+        protected_confirmation = False
+        if pending and (text or "").strip().rstrip("。！!") in {"取消本次操作", "取消本次申请", "不退了", "算了", "停止处理"}:
+            self.memory.set_pending_action(memory_user_id, None)
+            return AgentResponse(handled=True, text="已取消本次待确认申请，没有执行交易操作。", intent="after_sales_action", strategy="plan_and_solve")
+        if pending and confirmation_match:
+            protected_confirmation = True
+            entities = dict(route.entities)
+            if pending.get("order_id") and "order_id" not in entities:
+                entities["order_id"] = pending["order_id"]
+            route = RouteResult("after_sales_action", "plan_and_solve", 0.99, entities)
+        elif pending and route.entities.get("order_id") and re.fullmatch(
+            r"\s*(?:订单号?|是|我的订单号是|订单号是)?\s*[:：]?\s*" + re.escape(route.entities["order_id"]) + r"[。！!]?\s*", text, re.IGNORECASE
+        ):
+            protected_confirmation = True
+            route = RouteResult("after_sales_action", "plan_and_solve", 0.99, route.entities)
+        elif pending and any(word in (text or "") for word in ("确认", "确定", "同意继续")):
+            pending_order = pending.get("order_id") or "订单号"
+            return AgentResponse(
+                handled=True,
+                text=f"我没有把这句话视为交易确认。若要继续，请单独明确回复“确认处理 {pending_order}”。",
+                intent="after_sales_action",
+                strategy="plan_and_solve",
+                requires_confirmation=True,
+                audit=["拒绝了不符合格式或含义不明确的二次确认"],
+            )
+
+        # Model routing receives the current task and this session's dialogue.
+        # Server-bound attachments and explicit confirmations keep their checks.
+        semantic_route = None
+        if self.intent_router is not None and not attachment_id and not protected_confirmation:
+            from .styling.planner import CONTEXT_FIELDS
+            from .rag.answer import safe_question
+            style_service = style_service or get_styling_service()
+            state = style_service.conversation(styling_owner) or {}
+            current = style_service.latest(styling_owner)
+            current = current if isinstance(current, dict) else {}
+            options = state.get("options") or current.get("result", {}).get("options", {})
+            outfits = current.get("result", {}).get("outfits", [])
+            context = {
+                "history": self.memory.get_messages(memory_user_id),
+                "styling": {
+                    "active": bool(state.get("active")),
+                    "waiting": state.get("waiting", []),
+                    "options": {key: value for key, value in options.items() if key in CONTEXT_FIELDS},
+                    "current_outfit": [{"name": safe_question(item.get("name", ""))[:80],
+                                        "group": item.get("group"), "price": item.get("price")}
+                                       for item in outfits[0].get("items", [])] if outfits else [],
+                },
+                "has_product_context": bool(product_id or route.entities.get("product_id")),
+                "photo_pending": False,
+            }
+            semantic_route = self.intent_router.route(text, route, context=context)
+            if semantic_route is not None:
+                route = semantic_route
+                model_only_followup = False
+
+        # Semantic product intents must pass the same checks as keyword routes.
         if product_id is not None and route.intent in {"product_query", "size_recommendation"}:
             verified_id = self.verified_product_context_id(product_id)
             if verified_id is None:
@@ -666,34 +749,11 @@ class AgentController:
                 entities["product_id"] = verified_id
                 route = RouteResult(route.intent, route.strategy, route.confidence, entities)
         route = self._reuse_recent_product(text, memory_user_id, route)
-        pending = self.memory.get_pending_action(memory_user_id)
-        confirmation_match = self._confirmation_pattern.fullmatch((text or "").strip())
-        if pending and (text or "").strip().rstrip("。！!") in {"取消本次操作", "取消本次申请", "不退了", "算了", "停止处理"}:
-            self.memory.set_pending_action(memory_user_id, None)
-            return AgentResponse(handled=True, text="已取消本次待确认申请，没有执行交易操作。", intent="after_sales_action", strategy="plan_and_solve")
-        if pending and confirmation_match:
-            entities = dict(route.entities)
-            if pending.get("order_id") and "order_id" not in entities:
-                entities["order_id"] = pending["order_id"]
-            route = RouteResult("after_sales_action", "plan_and_solve", 0.99, entities)
-        elif pending and route.entities.get("order_id") and re.fullmatch(
-            r"\s*(?:订单号?|是|我的订单号是|订单号是)?\s*[:：]?\s*" + re.escape(route.entities["order_id"]) + r"[。！!]?\s*", text, re.IGNORECASE
-        ):
-            route = RouteResult("after_sales_action", "plan_and_solve", 0.99, route.entities)
-        elif pending and any(word in (text or "") for word in ("确认", "确定", "同意继续")):
-            pending_order = pending.get("order_id") or "订单号"
-            return AgentResponse(
-                handled=True,
-                text=f"我没有把这句话视为交易确认。若要继续，请单独明确回复“确认处理 {pending_order}”。",
-                intent="after_sales_action",
-                strategy="plan_and_solve",
-                requires_confirmation=True,
-                audit=["拒绝了不符合格式或含义不明确的二次确认"],
-            )
         self._remember_route(memory_user_id, route)
 
         if route.intent == "styling":
-            return self._handle_styling(text, user_id, styling_owner, attachment_id, conversation_id, model_only_followup)
+            return self._handle_styling(text, user_id, styling_owner, attachment_id, conversation_id,
+                                        model_only_followup, initial_updates=route.entities.get("styling_updates"))
         if route.intent == "product_query":
             return self._handle_product(text, memory_user_id, route)
         if route.intent == "size_recommendation":
@@ -709,9 +769,12 @@ class AgentController:
         if route.intent == "after_sales_action":
             return self._handle_high_risk_action(text, user_id, route, demo_session_id, memory_user_id)
 
-        # Only general questions reach the semantic fallback. Product, logistics,
-        # order, styling and write-operation routes have already been dispatched.
-        # No broad LLM intent classification and no extra network call for chit-chat.
+        if semantic_route is not None and route.entities.get("reply"):
+            return self._finalize(route=route, text=route.entities["reply"],
+                                  audit=["模型结合当前会话直接回复，未调用业务工具"])
+
+        # Keep local policy retrieval when model classification is unavailable.
+        # An explicit model classification as general goes straight to Fay chat.
         # General dialogue has no policy intent guaranteed by the router. A
         # semantic resemblance alone must not turn chit-chat or secret-seeking
         # instructions into an authoritative policy answer. Use an explicit
@@ -725,7 +788,7 @@ class AgentController:
             r"(?:告诉我|输出|泄露|给我).*(?:管理员密码|系统提示词|API.?KEY|密钥)",
             text or "", re.IGNORECASE,
         ))
-        if (route.intent == "general" and policy_context and not secret_request
+        if (semantic_route is None and route.intent == "general" and policy_context and not secret_request
                 and len((text or "").strip()) >= 6):
             result = self.registry.execute("query_policy", query=text, concise=True)
             retrieval = (result.get("data") or {}).get("retrieval", {})
@@ -740,5 +803,6 @@ class AgentController:
             handled=False,
             intent=route.intent,
             strategy=route.strategy,
-            audit=["未命中确定性电商路由，交还 Fay LLM 链路"],
+            audit=["语义路由判为通用对话，交还 Fay LLM 链路" if semantic_route is not None
+                   else "未命中电商业务路由，交还 Fay LLM 链路"],
         )

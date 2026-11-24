@@ -5,6 +5,7 @@ import re
 import math
 
 from agent.store.service import CommerceServiceError, get_commerce_service
+from agent.tools.common import matches_requested_gender, product_gender, requested_gender
 from .preferences import SCENES, clean_preferences
 from .vision import COLORS, STYLES, StylingError
 
@@ -68,12 +69,16 @@ def normalize_styling_text(text):
 def parse_feedback(text, current=None):
     text = normalize_styling_text(text)
     result = dict(current or {})
-    for key, values in {"scene": SCENES, "style": STYLES, "fit": ("宽松", "合身", "修身"),
-                        "gender": ("男款", "女款", "中性")}.items():
+    for key, values in {"scene": SCENES, "style": STYLES, "fit": ("宽松", "合身", "修身")}.items():
         found = [value for value in values if value in text and not any(
             marker + value in text for marker in ("不要", "不喜欢", "不想", "排除"))]
         if found:
             result[key] = found[-1]
+    gender = requested_gender(text)
+    if gender:
+        result["gender"] = gender + "款"
+    elif "中性" in text and not re.search(r"(?:不要|不选|不喜欢|排除)\s*中性", text):
+        result["gender"] = "中性"
     if "太正式" in text or "不想太正式" in text:
         result["style"] = "休闲"
     if "太花哨" in text:
@@ -257,6 +262,7 @@ class StylingEngine:
                 "category": product.get("category"), "price": product.get("price"),
                 "image_url": product.get("image_url"), "source_url": product.get("public_url") or product.get("source_url"),
                 "snapshot_at": product.get("snapshot_at"), "colors": colors_of(product),
+                "gender": product_gender(product),
                 "tryon_supported": bool(product.get("tryon_supported")),
                 "stock_note": ("库存待核验" if product.get("stock_total_public") is None else
                                "公开快照暂时缺货" if product["stock_total_public"] == 0 else "快照中有库存"),
@@ -350,12 +356,11 @@ class StylingEngine:
                 return False
             if product['price'] > max_item_prices.get(group_of(product), float('inf')):
                 return False
-            gender, name = options["gender"], product["name"]
+            gender = options["gender"]
             if gender in {"男款", "女款"}:
-                from agent.tools.common import matches_requested_gender
-                if not matches_requested_gender(name, gender[0]):
+                if not matches_requested_gender(product, gender[0]):
                     return False
-            if gender == "中性" and ("男" in name or "女" in name) and "情侣" not in name and not ("男" in name and "女" in name):
+            if gender == "中性" and product_gender(product) in {"男", "女"}:
                 return False
             excluded_colors = excluded_for(group_of(product))
             required_colors = required_for(group_of(product))

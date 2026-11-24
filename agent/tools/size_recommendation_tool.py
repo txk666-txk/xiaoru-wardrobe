@@ -58,7 +58,7 @@ class SizeRecommendationTool:
                 )
                 if group is None or not product.get("size_chart_verified"):
                     continue
-                if not matches_requested_gender(product["name"], gender):
+                if not matches_requested_gender(product, gender):
                     continue
                 requested_types = [word for word in self._category_keywords[group] if word in query]
                 if requested_types and not any(word.casefold() in product["name"].casefold() for word in requested_types):

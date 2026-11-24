@@ -159,12 +159,12 @@ class ProductTool:
             return "本机参考快照；交易仅在沙盒模拟，库存待核验，不代表真实在售。"
         return "价格与库存以商品页实时展示为准。"
 
-    def _public_recommendations(self, query: str) -> dict | None:
-        if self.public_provider is None or not any(
+    def _public_recommendations(self, query: str, gender: str | None = None, filters: dict | None = None) -> dict | None:
+        if self.public_provider is None or (not filters and not gender and not any(
             word in query for word in ("推荐", "挑一", "选一", "选几", "想买", "买件", "想找", "帮我挑", "帮我选")
-        ):
+        )):
             return None
-        if any(word in query for word in ("有哪些商品", "商品列表", "产品列表", "卖什么")):
+        if not filters and not gender and any(word in query for word in ("有哪些商品", "商品列表", "产品列表", "卖什么")):
             return None
 
         category_words = (
@@ -177,11 +177,15 @@ class ProductTool:
         categories = {category for word, category in category_words if word in query}
         if "衣服" in query or "上衣" in query:
             categories.update(("T恤/上衣", "外套", "卫衣/针织", "衬衫"))
+        if filters and filters.get("category"):
+            categories = {filters["category"]}
         budget_match = re.search(r"预算\s*(?:在|约|是|不超过)?\s*[¥￥]?\s*(\d{2,5})", query)
         if not budget_match:
             budget_match = re.search(r"[¥￥]?\s*(\d{2,5})\s*元?\s*(?:以内|以下)", query)
         budget = int(budget_match.group(1)) if budget_match else None
-        gender = requested_gender(query)
+        if filters and filters.get("budget") is not None:
+            budget = filters["budget"]
+        gender = gender or requested_gender(query)
         preferences = [
             word for word in (
                 "春", "夏", "秋", "冬", "宽松", "修身", "复古", "美式",
@@ -189,7 +193,7 @@ class ProductTool:
             ) if word in query
         ]
 
-        if not categories and budget is None and not preferences:
+        if not categories and budget is None and not preferences and not gender:
             return tool_result(
                 ok=True,
                 message="我可以帮你挑合适的商品。你想先看上衣、裤装还是配饰？有预算也可以告诉我。",
@@ -205,7 +209,7 @@ class ProductTool:
             for product in result["items"]:
                 if categories and product.get("category") not in categories:
                     continue
-                if not matches_requested_gender(product.get("name", ""), gender):
+                if not matches_requested_gender(product, gender):
                     continue
                 price = product.get("price")
                 if price is None or budget is not None and price > budget:
@@ -234,7 +238,8 @@ class ProductTool:
         lines.append(self._catalog_notice() + "你更偏好哪一款？")
         return tool_result(ok=True, message="\n".join(lines), data={"items": [item[1] for item in selected]})
 
-    def _public_product_result(self, query: str, product_id: str | None) -> dict | None:
+    def _public_product_result(self, query: str, product_id: str | None, gender: str | None = None,
+                               filters: dict | None = None) -> dict | None:
         if self.public_provider is None:
             return None
 
@@ -247,7 +252,7 @@ class ProductTool:
                 product = self.public_provider.get_product(alias)
 
         if product is None and not product_id:
-            recommendations = self._public_recommendations(query)
+            recommendations = self._public_recommendations(query, gender, filters)
             if recommendations is not None:
                 return recommendations
 
@@ -367,13 +372,29 @@ class ProductTool:
                 matches.append((sku.get("sku_id", ""), label, int(sku.get("stock", 0))))
         return matches
 
-    def execute(self, *, query: str = "", product_id: str | None = None, **_: object) -> dict:
+    def execute(self, *, query: str = "", product_id: str | None = None,
+                gender: str | None = None, filters: dict | None = None, **_: object) -> dict:
         query = (query or "").strip()
+        if filters is not None:
+            from agent.intent_router import PRODUCT_CATEGORIES
+            from agent.styling.preferences import clean_preferences
+            try:
+                if not isinstance(filters, dict) or set(filters) - {"category", "gender", "budget"}:
+                    raise ValueError("invalid_product_filters")
+                if "category" in filters and filters["category"] not in PRODUCT_CATEGORIES:
+                    raise ValueError("invalid_product_category")
+                clean_preferences({key: value for key, value in filters.items() if key != "category"})
+            except (ValueError, TypeError):
+                return tool_result(ok=False, error="invalid_product_filters", message="商品筛选条件无效，请重新说明需求")
+            gender = filters.get("gender", gender)
+        if gender not in {None, "不限", "男款", "女款", "中性"}:
+            return tool_result(ok=False, error="invalid_gender", message="请选择有效的目标款式")
+        gender = None if gender == "不限" else gender
 
         # Only a selected demo catalog may use the legacy EC response shape.
         # Local reference catalogs must never resolve IDs against old fixtures.
         if not (isinstance(self.public_provider, DemoCatalogProvider) and product_id and product_id.upper().startswith("EC")):
-            public_result = self._public_product_result(query, product_id)
+            public_result = self._public_product_result(query, product_id, gender, filters)
             if public_result is not None:
                 return public_result
             if self.public_provider is not None and not isinstance(self.public_provider, DemoCatalogProvider):

@@ -30,7 +30,9 @@ def get_controller() -> AgentController:
         with _controller_lock:
             if _controller is None:
                 from .styling.planner import configured_planner
-                _controller = AgentController(styling_planner=configured_planner())
+                from .intent_router import configured_intent_router
+                _controller = AgentController(styling_planner=configured_planner(),
+                                              intent_router=configured_intent_router())
     return _controller
 
 

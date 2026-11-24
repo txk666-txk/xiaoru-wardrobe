@@ -29,10 +29,10 @@ def evidence_blocks(policies):
 def safe_question(text):
     from agent.privacy import redact_body_measurements
     value = redact_body_measurements(str(text)[:1200])
-    value = re.sub(r"\b[A-Za-z]*\d{5,}[A-Za-z0-9-]*\b", "[号码已脱敏]", value)
+    value = re.sub(r"(?<![A-Za-z0-9])[A-Za-z]*\d{5,}[A-Za-z0-9-]*(?![A-Za-z0-9])", "[号码已脱敏]", value)
     value = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[邮箱已脱敏]", value)
     value = re.sub(r"sk-[A-Za-z0-9_-]+", "[密钥已脱敏]", value)
-    return value
+    return value[:1200]
 
 
 class ConfiguredPolicyGenerator:

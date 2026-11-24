@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import threading
+import time
+import re
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
@@ -17,6 +19,9 @@ class UserSession:
     last_order_id: str | None = None
     last_product_id: str | None = None
     pending_action: dict[str, str] | None = None
+    messages: deque[dict] = field(default_factory=lambda: deque(maxlen=8))
+    messages_updated_at: float = 0
+    turn_lock: object = field(default_factory=threading.RLock)
 
 
 class SessionMemory:
@@ -43,6 +48,27 @@ class SessionMemory:
     def get_last_order_id(self, user_id: str) -> str | None:
         with self._lock:
             return self._sessions[user_id].last_order_id
+
+    def turn_lock(self, user_id: str):
+        with self._lock:
+            return self._sessions[user_id].turn_lock
+
+    def get_messages(self, user_id: str) -> list[dict]:
+        with self._lock:
+            session = self._sessions[user_id]
+            if time.monotonic() - session.messages_updated_at > 1800:
+                session.messages.clear()
+            return [dict(message) for message in session.messages]
+
+    def remember_exchange(self, user_id: str, text: str, answer: str) -> None:
+        from .rag.answer import safe_question
+        if re.fullmatch(r"\s*(?:\d{2,5}(?:\.\d+)?|[一二两三四五六七八九十百千零]+)\s*[。！]?\s*", text):
+            text = "[本轮数值回答已脱敏]"
+        with self._lock:
+            session = self._sessions[user_id]
+            session.messages.append({"role": "user", "content": safe_question(text)[:350]})
+            session.messages.append({"role": "assistant", "content": safe_question(answer)[:350]})
+            session.messages_updated_at = time.monotonic()
 
     def get_last_product_id(self, user_id: str) -> str | None:
         with self._lock:

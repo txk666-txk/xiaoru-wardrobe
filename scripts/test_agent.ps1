@@ -40,6 +40,8 @@ $pythonSuites = @(
     "test.test_styling_planner_diagnostics",
     "test.test_styling_langgraph",
     "test.test_ecommerce_agent",
+    "test.test_intent_routing",
+    "test.test_styling_gender",
     "test.test_service_policy",
     "test.test_policy_rag",
     "test.test_policy_rag_routing",
