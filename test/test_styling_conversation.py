@@ -150,6 +150,48 @@ class DialogueTests(unittest.TestCase):
         self.assertTrue(outfits)
         self.assertTrue(all([item['group'] for item in outfit['items']] == ['bottoms'] for outfit in outfits))
 
+    def test_reported_pants_to_outfit_conversation(self):
+        self.service.engine.commerce.products = [
+            item for item in self.service.engine.commerce.products if item['product_id'] != 'PANTS']
+        job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
+        first = self.turn('帮我配个棕色裤子，预算200以内', attachment_id=job['job_id'])
+        self.assertEqual([call['tool'] for call in first.tool_calls], ['inspect_outfit_photo', 'recommend_outfit'])
+        self.assertIn('能确认是棕色', first.text)
+        self.assertNotIn('照片里的', first.text)
+        self.assertIn('裤子颜色不限', first.presentation['suggestions'])
+
+        occasion = self.turn('约会')
+        self.assertEqual(occasion.presentation['plan']['options']['scene'], '约会')
+        self.assertIn('能确认是棕色', occasion.text)
+        result = self.turn('那帮我配一套两百以内的').presentation['plan']
+        self.assertEqual(result['options']['budget'], 200)
+        self.assertNotIn('bottoms', result['options'].get('required_colors_by_group', {}))
+        self.assertEqual(result['options']['scene'], '约会')
+        self.assertTrue(result['outfits'])
+        for outfit in result['outfits']:
+            self.assertEqual({item['group'] for item in outfit['items']}, {'tops', 'bottoms'})
+            self.assertLessEqual(outfit['total'], 200)
+
+    def test_model_changes_scope_with_non_template_user_wording(self):
+        from test.test_styling_planner import SequencePlanner
+
+        job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
+        first = self.turn('日常只推荐棕色裤子，预算180', attachment_id=job['job_id'])
+        self.assertTrue(first.presentation['plan']['options']['only_pants'])
+        planner = SequencePlanner({
+            'action': 'recommend_outfit', 'scope': 'full_outfit',
+            'evidence': {'scope': '上半身和下半身都重新挑挑'},
+        })
+        self.controller.styling_planner = planner
+        followup = self.turn('上半身和下半身都重新挑挑，两百以内')
+        self.assertEqual(followup.presentation['decision_mode'], 'model')
+        plan = followup.presentation['plan']
+        self.assertEqual(plan['options']['budget'], 200)
+        self.assertNotIn('only_pants', plan['options'])
+        self.assertNotIn('bottoms', plan['options'].get('required_colors_by_group', {}))
+        self.assertTrue(plan['outfits'])
+        self.assertEqual({item['group'] for item in plan['outfits'][0]['items']}, {'tops', 'bottoms'})
+
     def test_vision_failure_or_foreign_attachment_never_queries_products(self):
         job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
         foreign = self.turn('通勤搭配，预算300', owner='bob', attachment_id=job['job_id'])

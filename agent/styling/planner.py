@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -25,6 +26,7 @@ VALIDATION_CODES = {
     'invalid_groups', 'ungrounded_group', 'conflicting_groups', 'provider_unconfigured',
     'invalid_provider_content', 'action_unavailable', 'invented_budget',
     'missing_requirements', 'repeated_or_invalid_question', 'no_visual_evidence',
+    'invalid_scope', 'ungrounded_scope',
 }
 
 SYSTEM_PROMPT = """你是 Fay 数字人客服的穿搭工具决策器。只输出一个 JSON 对象，不输出思考过程。
@@ -34,11 +36,11 @@ SYSTEM_PROMPT = """你是 Fay 数字人客服的穿搭工具决策器。只输�
 即使场景预算齐全也不能先 recommend_outfit。看图工具返回后你会再收到一次决策请求。
 可用动作以 context.available_actions 为准：
 - inspect_outfit_photo：先看已授权照片，读到 observation 后再决定追问还是推荐。
-- ask：缺场景或新增商品的总预算时只问缺项。已明确的条件不再问。question_fields 可为
+- ask：只问 context.missing_fields 内的必填项。只找裤子时只需要预算，场景可用于排序。question_fields 可为
   scene、budget，或可选的 profile（季节/版型）；profile 最多问一次，顾客可跳过。
   question_fields 只能包含补充本轮 updates 后仍缺失的 scene/budget，不能混入 profile。
   仅在 scene/budget 都已知且 context.profile_question_allowed=true 时才可单独问 profile。
-- recommend_outfit：场景和预算已知时选它；结果来自工具，不自行编商品、价格、库存。
+- recommend_outfit：选品所需条件已齐全时选它；结果来自工具，不自行编商品、价格、库存。
 - opinion：只评价衣服/配色、不购物时选它；没有视觉证据不得假装看过照片。
 - pause：用户暂停搭配或不想买时选它。
 - handoff：当前话题不属于穿搭（如问天气或打招呼）时交还 Fay 通用对话。
@@ -46,6 +48,13 @@ updates 仅填写本轮明确表达的变动，每项必须有 evidence 中逐�
 options 已有且本轮没变的条件不要重复放进 updates；例如历史预算不限，本轮只换裤子，
 不能再次填写 budget_unlimited。没有条件变动时 updates 和 evidence 都用空对象。
 保留上下文里未被修改的条件；不要推测预算、性别、身高、体型，不从照片推算身体数据。
+当本轮明确改变需要选购的范围，在 scope 填 pants_only（只找裤子）或 full_outfit（从单品改成整套），
+并在 evidence.scope 摘录原话。如“上半身和下半身都重新挑挑”可选 full_outfit；只补场合或预算时省略 scope。
+整套是一次新的选品范围，旧的单品颜色和类型不用复述。本轮明确指定的颜色和预算继续生效。
+scope 必须是顶层字段。scope、only_pants、bottoms_kind、required_colors_by_group 都不能放在 updates 里。
+例如，“上半身和下半身都重新挑挑”且预算已知时，输出
+{"action":"recommend_outfit","scope":"full_outfit","updates":{},"evidence":{"scope":"上半身和下半身都重新挑挑"}}。
+previous_search=no_match 表示上一次目录查询没有候选。用户后续提供的范围或条件用于重新查询，不要自行放宽硬条件。
 可更新 scene(日常/通勤/面试/约会/旅行/运动)、budget(30..10000)、budget_unlimited(布尔值)、season(春季/夏季/秋季/冬季)、
 fit(宽松/合身/修身)、style(休闲/简约/通勤/运动/复古/街头)、gender(不限/男款/女款/中性)、
 colors/excluded_colors(黑白灰蓝棕米绿红粉紫黄的数组)。
@@ -120,6 +129,7 @@ class StylingDecision:
     release_groups: tuple = ()
     cheaper_groups: tuple = ()
     replace_groups: tuple = ()
+    scope: str | None = None
 
 
 def parse_decision(raw, text):
@@ -136,7 +146,7 @@ def parse_decision(raw, text):
         except (ValueError, TypeError) as exc:
             raise PlannerError("invalid_json") from exc
     allowed = {"action", "updates", "evidence", "question_fields", "keep_groups",
-               "release_groups", "cheaper_groups", "replace_groups", "group_evidence"}
+               "release_groups", "cheaper_groups", "replace_groups", "group_evidence", "scope"}
     if (not isinstance(raw, dict) or set(raw) - allowed or
             not isinstance(raw.get('action'), str) or raw['action'] not in ACTIONS):
         raise PlannerError("invalid_action")
@@ -174,7 +184,17 @@ def parse_decision(raw, text):
         groups[key] = tuple(dict.fromkeys(values))
     if set(groups['keep_groups']) & set(groups['release_groups']):
         raise PlannerError("conflicting_groups")
-    return StylingDecision(raw['action'], cleaned, tuple(dict.fromkeys(questions)), **groups)
+    scope = raw.get('scope')
+    if scope is not None:
+        if scope not in ('pants_only', 'full_outfit') or raw['action'] not in ('ask', 'recommend_outfit', 'inspect_outfit_photo'):
+            raise PlannerError('invalid_scope')
+        quote = evidence.get('scope')
+        from .engine import TROUSER_WORDS
+        scope_signal = (TROUSER_WORDS if scope == 'pants_only' else
+                        r'整套|全套|全身|整身|成套|一身|一套|从头到脚|从上到下|上(?:半身|衣|装).{0,10}下(?:半身|衣|装|裤)|上下(?:身)?都')
+        if not isinstance(quote, str) or quote not in text or not re.search(scope_signal, quote):
+            raise PlannerError('ungrounded_scope')
+    return StylingDecision(raw['action'], cleaned, tuple(dict.fromkeys(questions)), **groups, scope=scope)
 
 
 class ConfiguredStylingPlanner:
@@ -228,7 +248,8 @@ def configured_planner():
 
 
 def missing_requirements(options):
-    return [key for key in ('scene', 'budget')
+    required = ('budget',) if options.get('only_pants') else ('scene', 'budget')
+    return [key for key in required
             if key not in options and not (key == 'budget' and options.get('budget_unlimited'))]
 
 
@@ -238,7 +259,8 @@ def public_context(*, text, options, observation, current, available, waiting, p
     for item in (observation or {}).get('garments', [])[:6]:
         garments.append({key: item[key] for key in ('category', 'color', 'style', 'fit', 'pattern')
                          if isinstance(item.get(key), str) and len(item[key]) < 30})
-    items = (current or {}).get('result', {}).get('outfits', [])
+    last_plan = (current or {}).get('result', {})
+    items = last_plan.get('outfits', [])
     return {
         'text': ('[本次身体数据已脱敏]' if waiting == ['profile'] and text.strip().rstrip('。！').isdigit()
                  else redact_body_measurements(text)),
@@ -250,6 +272,7 @@ def public_context(*, text, options, observation, current, available, waiting, p
         'profile_question_allowed': bool(not personal_asked and 'ask' in available and
             not missing_requirements(options)),
         'waiting': waiting, 'personal_asked': personal_asked,
+        'previous_search': ('matched' if items else 'no_match') if 'outfits' in last_plan else None,
         'current_outfit': [{'group': item['group'], 'price': item.get('price')}
                            for item in items[0]['items']] if items else [],
     }

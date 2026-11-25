@@ -153,7 +153,8 @@ class StylingWorkflow:
         options = dict(state['options'])
         conversation = request.conversation
         missing = missing_requirements(options)
-        ask_profile = (conversation.get('collected') and not conversation.get('personal_asked') and not request.skip and not (
+        ask_profile = (not options.get('only_pants') and conversation.get('collected')
+                       and not conversation.get('personal_asked') and not request.skip and not (
             (options.get('season') or options.get('temperature') is not None) and
             (options.get('height_cm') or options.get('fit') or options.get('body_type'))))
         decision = (StylingDecision('inspect_outfit_photo') if state['photo_pending'] else
@@ -166,6 +167,8 @@ class StylingWorkflow:
                      ['opinion'] if request.opinion_only else
                      ['ask', 'recommend_outfit'] if missing else ['recommend_outfit'] + (['ask'] if ask_profile else []))
         if not state['photo_pending']:
+            if options.get('only_pants') and 'scene' not in options and 'ask' not in available:
+                available.append('ask')
             available += ['pause', 'handoff']
             if state['observation'] and 'opinion' not in available:
                 available.append('opinion')
@@ -185,8 +188,17 @@ class StylingWorkflow:
                     numbers = [float(n) for n in re.findall(r'(?<!\d)\d+(?:\.\d+)?', context['text'])]
                     if candidate.updates['budget'] not in numbers:
                         raise PlannerError('invented_budget')
-                from .engine import parse_feedback
+                from .engine import clear_pants_scope, parse_feedback, requests_full_outfit, requests_pants_only
                 explicit = parse_feedback(request.text)
+                has_photo = bool(request.attachment_id or state['observation'])
+                if candidate.scope == 'full_outfit':
+                    if requests_pants_only(request.text, has_photo=has_photo):
+                        raise PlannerError('invalid_scope')
+                    proposed = parse_feedback(request.text, clear_pants_scope(proposed))
+                elif candidate.scope == 'pants_only':
+                    if requests_full_outfit(request.text) and not explicit.get('only_pants'):
+                        raise PlannerError('invalid_scope')
+                    proposed.update(only_pants=True, bottoms_kind='pants')
                 if candidate.updates.get('budget_unlimited') and not explicit.get('budget_unlimited'):
                     raise PlannerError('invented_budget')
                 for key in candidate.updates:
@@ -216,7 +228,7 @@ class StylingWorkflow:
                 if candidate.action == 'ask':
                     questions = set(candidate.question_fields)
                     if not questions or (still_missing and questions != set(still_missing)) or (
-                            not still_missing and (questions != {'profile'} or not ask_profile)):
+                            not still_missing and (questions != {'profile'} or not ask_profile or proposed.get('only_pants'))):
                         raise PlannerError('repeated_or_invalid_question')
                 if candidate.action == 'opinion' and not state['observation']:
                     raise PlannerError('no_visual_evidence')
@@ -245,7 +257,8 @@ class StylingWorkflow:
 
     def _execute_tool(self, state: StylingGraphState) -> dict:
         request, action = state['request'], state['action']
-        previous = (request.current or {}).get('result', {}).get('outfits', [])
+        previous_plan = (request.current or {}).get('result', {})
+        previous = previous_plan.get('outfits', [])
         items = previous[0]['items'] if previous else []
         keep_ids = list(state['keep_ids'])
         if action == 'inspect_outfit_photo':
@@ -256,6 +269,9 @@ class StylingWorkflow:
                 items = [item for item in items if item['group'] == 'bottoms']
                 keep_ids = [pid for pid in keep_ids if any(item['product_id'] == pid for item in items)]
                 previous_total = items[0]['price'] if items else None
+            elif previous_plan.get('options', {}).get('only_pants'):
+                keep_ids = []
+                previous_total = None
             changed = state['cheaper_groups'] | state['replace_groups']
             released = state['release_groups'] | changed
             keep_ids = [pid for pid in keep_ids if not any(

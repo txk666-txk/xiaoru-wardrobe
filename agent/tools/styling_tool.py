@@ -10,10 +10,9 @@ from .common import tool_result
 
 def describe_plan(plan):
     options = plan['options']
-    lines = [*plan.get('aesthetic_advice', [])[:1]]
     if not plan['outfits']:
-        lines.append(plan['summary'])
-        return '\n'.join(lines)
+        return plan['summary']
+    lines = [*plan.get('aesthetic_advice', [])[:1]]
     first = plan['outfits'][0]
     if options.get('only_pants'):
         budget = '价格不限' if options.get('budget_unlimited') else f"预算 ¥{options['budget']:.0f}"

@@ -295,7 +295,7 @@ class AgentController:
                     audit=['Agent 按视觉证据与会话需求调用搭配工具，再审核预算、商品事实及尺码依据'],
                     presentation={'kind': 'styling', 'phase': 'recommended' if result.get('ok') else 'failed',
                                   'plan': data if result.get('ok') else None,
-                                  'suggestions': ['太正式了', '便宜一点', '保留裤子', '先不买']})
+                                  'suggestions': data.get('suggestions') or ['太正式了', '便宜一点', '保留裤子', '先不买']})
             response.audit = workflow_audit + response.audit
             response.presentation.update(metadata)
             return finish(response)
@@ -718,7 +718,8 @@ class AgentController:
     ) -> AgentResponse:
         route = self.router.route(text)
         model_only_followup = False
-        from .styling.engine import requests_pants_only
+        from .styling.engine import requests_full_outfit, requests_pants_only
+        from .styling.preferences import SCENES
         from .styling.service import get_styling_service
         styling_owner = demo_session_id or f'voice:{user_id}'
         style_service = get_styling_service() if attachment_id or route.intent in {'styling', 'general', 'product_query', 'size_recommendation'} else None
@@ -728,6 +729,8 @@ class AgentController:
             and route.intent in {'styling', 'general', 'product_query'}
             and not (product_id or route.entities.get('product_id'))
             and requests_pants_only(text, has_photo=True))
+        pants_followup = bool(state and state.get('active') and state.get('options', {}).get('only_pants')
+                              and text.strip().rstrip('。！') in (*SCENES, '裤子颜色不限'))
         if attachment_id:
             route = RouteResult('styling', 'react', 0.99, route.entities)
         elif photo_pants_request:
@@ -817,9 +820,9 @@ class AgentController:
             }
             semantic_route = self.intent_router.route(text, route, context=context)
             if semantic_route is not None and (
-                    (photo_pants_request and semantic_route.intent in {'product_query', 'general'})
-                    or (semantic_route.intent == 'product_query' and route.intent == 'styling'
-                        and Router.requests_complete_outfit(text))):
+                    (semantic_route.intent in {'product_query', 'general'} and route.intent == 'styling'
+                     and (photo_pants_request or pants_followup or requests_full_outfit(text)
+                          or Router.requests_complete_outfit(text)))):
                 semantic_route = None
             if semantic_route is not None:
                 route = semantic_route

@@ -88,6 +88,20 @@ class EngineTests(unittest.TestCase):
         plan = StylingEngine(Catalog(products)).plan({"budget": 100})
         self.assertEqual(plan["outfits"][0]["total"], 90)
 
+    def test_low_budget_outfits_exclude_mislabeled_accessories_and_pet_clothes(self):
+        products = [
+            product("PIN", "T恤/上衣", 12.9, "贴贴t恤配饰卡通衣服徽章服饰贴标装饰品"),
+            product("BAG", "卫衣/针织", 19, "洗衣机专用洗衣袋设计内衣毛衣防变形护洗袋"),
+            product("PET", "T恤/上衣", 29, "猫咪衣服夏季宠物轻薄透气小型犬条纹背心"),
+            product("TOP", "卫衣/针织", 99, "黑色徽章刺绣连帽卫衣"),
+            product("PANTS", "裤装", 99, "黑色直筒牛仔裤"),
+        ]
+        plan = StylingEngine(Catalog(products)).plan({"budget": 200})
+        self.assertEqual(len(plan["outfits"]), 1)
+        outfit = plan["outfits"][0]
+        self.assertEqual(outfit["total"], 198)
+        self.assertEqual({p["product_id"] for p in outfit["items"]}, {"TOP", "PANTS"})
+
     def test_owned_top_only_adds_bottoms_person_photo_plans_full_outfit(self):
         observation = {"mode": "garment", "garments": [{"category": "tops", "color": "白"}]}
         for outfit in self.engine.plan(observation=observation)["outfits"]:

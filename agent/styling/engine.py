@@ -33,13 +33,31 @@ def requests_pants_only(text, *, has_photo=False):
 
 
 def requests_full_outfit(text):
-    return bool(re.search(r"(?:推荐|搭配?|配|换|找|看看|来)\s*(?:一整套|整套|[一两1-2][套身])", text))
+    return bool(re.search(r"(?<![不别])(?:推荐|搭配?|配|换|找|看看|来)\s*(?:一整套|整套|[一两1-2][套身])", text))
+
+
+def clear_pants_scope(options):
+    result = dict(options or {})
+    if result.pop("only_pants", False):
+        result.pop("bottoms_kind", None)
+        for key in ("required_colors_by_group", "excluded_colors_by_group"):
+            if key in result:
+                result[key] = {group: colors for group, colors in result[key].items() if group != "bottoms"}
+    return result
 
 
 def group_of(product):
+    name = str(product.get("name") or "")
+    # Some listings name the clothes an accessory is used on, and the
+    # catalog's inferred category can mistake these listings for garments.
+    if re.search(
+        r"^(?:(?:洗衣机专用)?洗衣袋|(?:猫咪|狗狗|宠物)衣服|(?:自制)?(?:毛线|针织|运动){0,3}发带|(?:T恤|外套)配饰)"
+        r"|贴贴.*(?:T恤|外套)配饰|(?:挂饰|挂件).*衣服(?:饰品|装饰)",
+        name, re.IGNORECASE,
+    ):
+        return None
     # The snapshot merges skirts and camisoles; distinguish them from titles.
     if product.get("category") == "裙装/吊带":
-        name = product.get("name", "")
         if any(word in name for word in ("半身裙", "裙裤", "短裙", "长裙")) and "连衣裙" not in name:
             return "bottoms"
         if any(word in name for word in ("连衣裙", "连体", "套裙")):
@@ -78,6 +96,8 @@ def normalize_styling_text(text):
                   lambda m: m[1] + str(number(m[2])), text)
     text = re.sub(r'([一二两三四五六七八九十百千零]+)(元|块|公斤|千克|斤|厘米|度)',
                   lambda m: str(number(m[1])) + m[2], text)
+    text = re.sub(r'([一二两三四五六七八九十百千零]+)(?=\s*(?:以内|以下))',
+                  lambda m: str(number(m[1])), text)
     if re.fullmatch(r'[一二两三四五六七八九十百千零]+[。！]?', text):
         text = str(number(text.rstrip('。！')))
     return text
@@ -85,7 +105,7 @@ def normalize_styling_text(text):
 
 def parse_feedback(text, current=None):
     text = normalize_styling_text(text)
-    result = dict(current or {})
+    result = clear_pants_scope(current) if requests_full_outfit(text) and not requests_pants_only(text) else dict(current or {})
     for key, values in {"scene": SCENES, "style": STYLES, "fit": ("宽松", "合身", "修身")}.items():
         found = [value for value in values if value in text and not any(
             marker + value in text for marker in ("不要", "不喜欢", "不想", "排除"))]
@@ -121,7 +141,7 @@ def parse_feedback(text, current=None):
         if entities.get(key):
             result[key] = entities[key]
     match = re.search(r"(?:预算|不超过|以内|控制在)\s*[￥¥]?\s*(\d{2,5}(?:\.\d+)?)", text)
-    match = match or re.search(r"(\d{2,5})\s*(?:元以内|元预算)", text)
+    match = match or re.search(r"(?<![\d.])(\d{2,5}(?:\.\d+)?)\s*(?:(?:元|块)\s*)?(?:以内|以下|元预算)", text)
     if match:
         result["budget"] = float(match[1])
         result.pop("budget_unlimited", None)
@@ -196,7 +216,7 @@ def parse_feedback(text, current=None):
             result["required_colors_by_group"].pop("bottoms", None)
     if requests_pants_only(text):
         result.update(only_pants=True, bottoms_kind="pants")
-    elif requests_full_outfit(text) or result.get("bottoms_kind") != "pants":
+    elif result.get("bottoms_kind") != "pants":
         result.pop("only_pants", None)
     excluded, liked = list(result.get("excluded_colors", [])), list(result.get("colors", []))
     for color in COLORS:
@@ -383,7 +403,7 @@ class StylingEngine:
         if "one-pieces" in keep_groups:
             groups = [group for group in groups if group not in {"tops", "bottoms"}]
 
-        def eligible(product):
+        def eligible(product, *, require_color=True):
             if product["product_id"] in exclude_ids or product.get("price") is None:
                 return False
             if product.get("stock_total_public") == 0 or not math.isfinite(product["price"]) or product["price"] < 0:
@@ -402,7 +422,7 @@ class StylingEngine:
             if (group_of(product) == "bottoms" and options.get("bottoms_kind") and
                     bottoms_kind_of(product) != options["bottoms_kind"]):
                 return False
-            if required_colors and not product_colors & required_colors:
+            if require_color and required_colors and not product_colors & required_colors:
                 return False
             # Unknown colors cannot prove that an explicit exclusion is met.
             return (not excluded_colors or bool(product_colors)) and not product_colors & excluded_colors
@@ -497,15 +517,33 @@ class StylingEngine:
                        "当前目录未找到同时符合预算与偏好的搭配。可以调整配色或款式条件，也可以先穿已有衣服；不会推荐超预算的方案。")
         elif len(outfits) == 1:
             summary = "当前条件下找到一套搭配，可以调整预算或风格再看看其他选择。"
-        if only_pants:
-            summary = (f"找到 {len(outfits)} 款符合当前条件的裤子。" if outfits else
-                       "当前目录未找到符合颜色、款式和预算条件的裤子。")
+        suggestions = []
+        if only_pants and outfits:
+            summary = f"找到 {len(outfits)} 款符合当前条件的裤子。"
+        elif only_pants:
+            pants = [p for p in catalog if bottoms_kind_of(p) == "pants" and eligible(p, require_color=False)]
+            wanted = required_for("bottoms")
+            matching = [p for p in pants if eligible(p)]
+            limit = min(budget_limit, max_total_price) if max_total_price is not None else budget_limit
+            if wanted and not matching:
+                color = "、".join(c + "色" for c in COLORS if c in wanted)
+                summary = f"当前目录里没找到能确认是{color}、且符合其他条件的裤子。"
+                if any(p["price"] <= limit for p in pants):
+                    summary += "同一预算内可以看其他颜色，你想换个颜色还是改配整套？"
+                    suggestions.append("裤子颜色不限")
+            elif matching and min(p["price"] for p in matching) > limit:
+                lowest = min(p["price"] for p in matching)
+                summary = f"符合其他条件的裤子最低参考价是 ¥{lowest:g}，超过这次的 ¥{limit:g} 上限。"
+            else:
+                summary = "当前目录未找到符合这些条件的裤子。你可以调整颜色、款式或预算。"
+            suggestions.append("帮我配一整套")
         summary = "".join(constraint_notes) + summary
         return {"options": options, "outfits": outfits, "summary": summary,
                 "constraint_notes": constraint_notes,
                 "replaced_owned_groups": sorted(replaced_owned_groups),
                 "aesthetic_advice": aesthetic_advice(observation, options),
-                "observation": observation, "steps": ["确认需求", "检索商品", "预算与偏好筛选", "搭配规划", "核对价格与尺码"],
+                "observation": observation, "suggestions": suggestions,
+                "steps": ["确认需求", "检索商品", "预算与偏好筛选", "搭配规划", "核对价格与尺码"],
                 "notice": "搭配是审美建议；价格、库存与尺码请核对目录说明。照片不用于推算身体数据，生成图不等于真实合身效果。"}
 
     def compare(self, ids, options=None):
