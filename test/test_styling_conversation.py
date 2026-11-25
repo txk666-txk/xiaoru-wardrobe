@@ -150,6 +150,41 @@ class DialogueTests(unittest.TestCase):
         self.assertTrue(outfits)
         self.assertTrue(all([item['group'] for item in outfit['items']] == ['bottoms'] for outfit in outfits))
 
+    def test_budget_chip_stays_with_photo_and_black_pants_even_if_router_misclassifies(self):
+        from agent.intent_router import SemanticIntentRouter
+        from test.test_styling_planner import SequencePlanner
+
+        self.service.engine.commerce.products.extend([
+            fixtures.product('BLACK-PANTS', '裤装', 159, '黑色直筒休闲裤'),
+            fixtures.product('BLACK-JEANS', '裤装', 179, '黑色休闲牛仔裤'),
+        ])
+        classifier = Mock()
+        classifier.decide.return_value = {'intent': 'product_query', 'confidence': 0.98, 'operation': None,
+                                           'updates': {'budget': 200}, 'evidence': {'budget': '200元'}}
+        self.controller.intent_router = SemanticIntentRouter(classifier)
+        planner = SequencePlanner({'action': 'inspect_outfit_photo'}, {'action': 'ask', 'question_fields': ['budget']},
+                                  {'action': 'recommend_outfit'})
+        self.controller.styling_planner = planner
+        job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
+        question = self.turn('根据这个帮我推荐一个黑色裤子', attachment_id=job['job_id'], conversation_id='first')
+        self.assertEqual(question.presentation['phase'], 'collecting')
+        self.assertIn('预算', question.text)
+        response = self.turn('200元', conversation_id='second')
+        self.assertEqual(response.intent, 'styling')
+        self.assertEqual(response.presentation['decision_mode'], 'model')
+        self.assertEqual([call['tool'] for call in response.tool_calls], ['recommend_outfit'])
+        plan = response.presentation['plan']
+        self.assertEqual(plan['options']['budget'], 200)
+        self.assertEqual(plan['options']['required_colors_by_group'], {'bottoms': ['黑']})
+        self.assertTrue(plan['observation']['garments'])
+        self.assertTrue(plan['outfits'])
+        for outfit in plan['outfits']:
+            self.assertEqual([item['group'] for item in outfit['items']], ['bottoms'])
+            self.assertIn('黑', outfit['items'][0]['colors'])
+            self.assertLessEqual(outfit['total'], 200)
+        self.assertEqual(self.service.conversation('alice')['presentation']['conversation_id'], 'second')
+        self.assertEqual(planner.contexts[-1]['options']['budget'], 200)
+
     def test_reported_pants_to_outfit_conversation(self):
         self.service.engine.commerce.products = [
             item for item in self.service.engine.commerce.products if item['product_id'] != 'PANTS']

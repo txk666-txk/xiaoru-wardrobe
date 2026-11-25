@@ -13,6 +13,7 @@
         chatStylePhoto: null, chatStylePreview: '', chatStyleConsent: false, chatStyleMode: 'person',
         chatStylePhotoSent: false, chatStyleAttachmentId: null, chatStyleSending: false,
         chatStylePending: false, chatStyleProgress: '', chatStyleTimer: null, chatStylePresentations: {},
+        chatStylePollGeneration: 0, chatStylePreviousRevision: null,
         chatStyleDragging: false, chatVoiceTimer: null, chatVoiceUser: null,
         styleStyles: ['休闲', '简约', '通勤', '运动', '复古', '街头'],
         styleColors: ['黑', '白', '灰', '蓝', '棕', '米', '绿', '红', '粉', '紫', '黄'],
@@ -34,7 +35,7 @@
       this.styleRequestGeneration++;
       clearTimeout(this.styleTimer);
       clearTimeout(this.styleSyncTimer);
-      clearTimeout(this.chatStyleTimer);
+      this.stopChatStylePolling();
       clearTimeout(this.chatVoiceTimer);
       if (this.chatVoiceUser) this.styleRequest('/api/styling/voice', 'POST', {username: this.chatVoiceUser, enabled: false}).catch(() => {});
       if (this.chatStylePreview) URL.revokeObjectURL(this.chatStylePreview);
@@ -77,38 +78,73 @@
         this.chatStyleAttachmentId = job.job_id;
         return job.job_id;
       },
-      async syncChatStylePresentation(revision) {
+      async syncChatStylePresentation(revision, conversationId, previousRevision, generation) {
         try {
           const presentation = await this.styleRequest('/api/styling/conversation');
-          if (!presentation || (revision && presentation.revision !== revision)) return;
-          if (!presentation.conversation_id) return;
-          if (presentation.username && Array.isArray(this.selectedUser) && presentation.username !== this.selectedUser[1]) return;
-          if (presentation.conversation_id) this.$set(this.chatStylePresentations, presentation.conversation_id, presentation);
+          if (generation !== undefined && generation !== this.chatStylePollGeneration) return false;
+          if (!presentation || !presentation.conversation_id || !presentation.revision ||
+              (revision && presentation.revision !== revision) ||
+              (conversationId && presentation.conversation_id !== conversationId) ||
+              (previousRevision && presentation.revision === previousRevision)) return false;
+          if (presentation.username && Array.isArray(this.selectedUser) && presentation.username !== this.selectedUser[1]) return false;
+          const known = this.chatStylePresentations[presentation.conversation_id];
+          this.$set(this.chatStylePresentations, presentation.conversation_id, presentation);
           (this.messages || []).forEach(message => this.attachChatStylePresentation(message));
           if (this.$nextTick) this.$nextTick(() => {
             const chat = this.$el.querySelector('.chatmessage');
             if (chat) chat.scrollTop = chat.scrollHeight;
           });
-          this.chatStylePending = false; this.chatStyleProgress = '';
-          clearTimeout(this.chatStyleTimer);
+          if (generation !== undefined || (!known && presentation.revision !== this.chatStylePreviousRevision)) {
+            this.chatStylePending = false; this.chatStyleProgress = '';
+            this.stopChatStylePolling();
+          }
           if (this.styleInitialized) this.scheduleStyleSync();
-        } catch (_) { /* Keep chat usable while the tool endpoint reconnects. */ }
+          return true;
+        } catch (_) { return false; /* Keep chat usable while the tool endpoint reconnects. */ }
       },
       attachChatStylePresentation(message) {
         if (message.type !== 'fay') return;
         const presentation = this.chatStylePresentations[message.conversation_id];
         if (presentation && (!this.selectedUser || message.username === this.selectedUser[1])) this.$set(message, 'presentation', presentation);
       },
-      pollChatStylePresentation(previousRevision, attempt) {
+      stopChatStylePolling() {
+        this.chatStylePollGeneration++;
+        clearTimeout(this.chatStyleTimer);
+        this.chatStyleTimer = null;
+      },
+      finishChatStyleReply(conversationId) {
+        const known = this.chatStylePresentations[conversationId];
+        if (this.chatStylePending && known && known.revision === this.chatStylePreviousRevision) return;
+        this.chatStylePending = false; this.chatStyleProgress = '';
+        if (!conversationId || known) {
+          this.stopChatStylePolling();
+          return;
+        }
+        // Final text can arrive before the card notification, or after a failed card fetch.
+        // Retry the exact completed turn briefly without leaving the composer blocked.
+        this.pollChatStylePresentation(null, 0, conversationId);
+      },
+      pollChatStylePresentation(previousRevision, attempt = 0, conversationId, generation) {
+        if (generation === undefined) {
+          this.stopChatStylePolling();
+          generation = this.chatStylePollGeneration;
+          this.chatStylePreviousRevision = previousRevision;
+        }
         clearTimeout(this.chatStyleTimer);
         this.chatStyleTimer = setTimeout(async () => {
-          try {
-            const current = await this.styleRequest('/api/styling/conversation');
-            if (current && current.conversation_id && current.revision !== previousRevision) { await this.syncChatStylePresentation(current.revision); return; }
-          } catch (_) {}
-          if ((attempt || 0) < 180) this.pollChatStylePresentation(previousRevision, (attempt || 0) + 1);
-          else { this.chatStylePending = false; this.chatStyleProgress = ''; this.$message.info('搭配回复等待超时，请检查服务日志后重试'); }
-        }, 2000);
+          if (generation !== this.chatStylePollGeneration) return;
+          if (await this.syncChatStylePresentation(null, conversationId, previousRevision, generation)) return;
+          if (generation !== this.chatStylePollGeneration) return;
+          if (attempt < (conversationId ? 3 : 180)) {
+            this.pollChatStylePresentation(previousRevision, attempt + 1, conversationId, generation);
+          } else {
+            this.stopChatStylePolling();
+            if (!conversationId && this.chatStylePending) {
+              this.chatStylePending = false; this.chatStyleProgress = '';
+              this.$message.info('搭配回复等待超时，请检查服务日志后重试');
+            }
+          }
+        }, conversationId && attempt === 0 ? 0 : 2000);
       },
       async linkChatVoice(enabled) {
         clearTimeout(this.chatVoiceTimer);

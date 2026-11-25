@@ -482,9 +482,7 @@ class FayInterface {
     if (data.panelReply !== undefined) {
       if (data.panelReply.type === 'fay' && data.panelReply.is_end &&
           Array.isArray(vueInstance.selectedUser) && data.panelReply.username === vueInstance.selectedUser[1]) {
-        vueInstance.chatStylePending = false;
-        vueInstance.chatStyleProgress = '';
-        clearTimeout(vueInstance.chatStyleTimer);
+        if (vueInstance.finishChatStyleReply) vueInstance.finishChatStyleReply(data.panelReply.conversation_id);
       }
       if (data.panelReply.type === 'fay' && vueInstance.scheduleStyleSync && vueInstance.styleInitialized) {
         vueInstance.scheduleStyleSync();
@@ -1966,7 +1964,8 @@ new Vue({
         const attachment = this.prepareChatStyleAttachment ? await this.prepareChatStyleAttachment() : null;
         if (attachment) send_data.styling_attachment_id = attachment;
         const previous = this.syncChatStylePresentation ? await this.styleRequest('/api/styling/conversation') : null;
-        if (attachment || /穿搭|搭配|搭一套|搭一身|配一套|配一身|(?:推荐|挑选?|选)\s*[一两二三1-3][套身](?:衣服|服装|行头)|季节|预算|保留|正式|花哨|宽松|跳过/.test(text)) {
+        const collecting = previous && previous.kind === 'styling' && previous.phase === 'collecting' && previous.username === usernameToSend;
+        if (attachment || collecting || /穿搭|搭配|搭一套|搭一身|配一套|配一身|(?:推荐|挑选?|选)\s*[一两二三1-3][套身](?:衣服|服装|行头)|季节|预算|保留|正式|花哨|宽松|跳过/.test(text)) {
           this.chatStylePending = true; this.chatStyleProgress = attachment ? '我正在本机看照片中的服装…' : '数字客服正在了解需求并选择合适的工具…';
           this.pollChatStylePresentation(previous && previous.revision);
         }
@@ -1978,7 +1977,7 @@ new Vue({
         _this.newMessage = '';
         if (attachment) { this.chatStylePhotoSent = true; this.chatStyleAttachmentId = null; }
       } catch (error) {
-        this.chatStylePending = false; this.chatStyleProgress = ''; clearTimeout(this.chatStyleTimer);
+        this.chatStylePending = false; this.chatStyleProgress = ''; this.stopChatStylePolling();
         this.$message.error(error.message || '发送失败，请重试');
       }
       finally { this.chatStyleSending = false; }
@@ -2202,6 +2201,7 @@ new Vue({
       }
       this.selectedUser = user;
       if (this.chatStylePresentations) this.chatStylePresentations = {};
+      this.chatStylePending = false; this.chatStyleProgress = ''; this.stopChatStylePolling();
       if (this.clearChatStylePhoto) this.clearChatStylePhoto();
       this.fayService.registerHumanOutput(user[1]);
       // 切换用户时重置后台任务面板，立即拉取新用户的任务状态

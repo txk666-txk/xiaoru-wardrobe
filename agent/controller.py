@@ -38,6 +38,10 @@ class AgentController:
         r"(?:请)?(?:帮我|给我)?(?:查看|查询|查|看)(?:一下|下)?"
         r"(?:我(?:自己)?的)?(?:近期|最近|历史|全部|所有)?(?:订单(?:列表|记录)?|下单记录)"
     )
+    _budget_answer_pattern = re.compile(
+        r'(?:预算\s*(?:是|为|约|最多|不超过)?\s*|不超过\s*|最多\s*)?'
+        r'[¥￥]?\s*(\d{2,5}(?:\.\d+)?)\s*(?:元|块)?\s*(?:以内|以下)?'
+    )
 
     def __init__(
         self,
@@ -204,8 +208,9 @@ class AgentController:
                     options = merge_preferences(options, parse_feedback(text))
                 waiting = state.get('waiting', [])
                 bare = re.fullmatch(r'\s*(\d{2,5}(?:\.\d+)?)\s*(?:元|块)?\s*[。！]?\s*', text)
-                if bare and waiting == ['budget']:
-                    options['budget'] = float(bare[1])
+                budget_answer = self._budget_answer_pattern.fullmatch(text.strip().rstrip('。！？.!?').strip())
+                if budget_answer and 'budget' in waiting:
+                    options['budget'] = float(budget_answer[1])
                     options.pop('budget_unlimited', None)
                 elif bare and 'profile' in waiting and 120 <= float(bare[1]) <= 220:
                     options['height_cm'] = float(bare[1])
@@ -718,12 +723,25 @@ class AgentController:
     ) -> AgentResponse:
         route = self.router.route(text)
         model_only_followup = False
-        from .styling.engine import requests_full_outfit, requests_pants_only
+        from .styling.engine import normalize_styling_text, requests_full_outfit, requests_pants_only
         from .styling.preferences import SCENES
         from .styling.service import get_styling_service
         styling_owner = demo_session_id or f'voice:{user_id}'
         style_service = get_styling_service() if attachment_id or route.intent in {'styling', 'general', 'product_query', 'size_recommendation'} else None
         state = style_service.conversation(styling_owner) if style_service else None
+        pending_styling_slot = False
+        if (state and state.get('active') and state.get('waiting')
+                and route.intent in {'styling', 'general', 'product_query', 'size_recommendation'}
+                and not (product_id or route.entities.get('product_id'))):
+            waiting = state['waiting']
+            answer = normalize_styling_text(text).strip().rstrip('。！？.!?').strip()
+            budget_answer = self._budget_answer_pattern.fullmatch(answer)
+            pending_styling_slot = bool(
+                ('budget' in waiting and (budget_answer or answer in {'预算不限', '价格不限'}))
+                or ('scene' in waiting and answer in SCENES)
+                or ('profile' in waiting and (re.fullmatch(r'\d{3}(?:\.\d+)?', answer)
+                    or re.fullmatch(r'(?:春季|夏季|秋季|冬季|春天|夏天|秋天|冬天|宽松|合身|修身)', answer)))
+                or answer in {'直接推荐', '跳过', '跳过，直接推荐', '按默认', '你决定', '你看着办'})
         photo_pants_request = bool(
             state and state.get('active') and state.get('observation')
             and route.intent in {'styling', 'general', 'product_query'}
@@ -733,7 +751,7 @@ class AgentController:
                               and text.strip().rstrip('。！') in (*SCENES, '裤子颜色不限'))
         if attachment_id:
             route = RouteResult('styling', 'react', 0.99, route.entities)
-        elif photo_pants_request:
+        elif photo_pants_request or pending_styling_slot:
             route = RouteResult('styling', 'plan_and_solve', 0.96, route.entities)
         elif state and state.get('active') and route.intent in {'general', 'product_query', 'size_recommendation'} and not (product_id or route.entities.get('product_id')):
             from .styling.engine import parse_feedback
@@ -820,7 +838,8 @@ class AgentController:
             }
             semantic_route = self.intent_router.route(text, route, context=context)
             if semantic_route is not None and (
-                    (semantic_route.intent in {'product_query', 'general'} and route.intent == 'styling'
+                    (pending_styling_slot and semantic_route.intent != 'styling')
+                    or (semantic_route.intent in {'product_query', 'general'} and route.intent == 'styling'
                      and (photo_pants_request or pants_followup or requests_full_outfit(text)
                           or Router.requests_complete_outfit(text)))):
                 semantic_route = None

@@ -7,17 +7,19 @@ function fixture() {
   let options;
   const notices = [], timers = [], revoked = [];
   const context = { window: {location: {protocol: 'http:', hostname: 'localhost', port: '5000'}},
-    Vue: function(config) {options = config;}, FormData,
-    document: {querySelector: () => ({scrollHeight: 10, scrollTop: 0})},
+    Vue: function(config) {options = config;}, FormData, Audio: function () {},
+    document: {querySelector: () => ({scrollHeight: 10, scrollTop: 0}), addEventListener() {}},
     URL: {createObjectURL: () => 'blob:photo', revokeObjectURL: url => revoked.push(url)},
     setTimeout: fn => {timers.push(fn); return timers.length;}, clearTimeout() {}, console };
   vm.runInNewContext(fs.readFileSync('gui/static/js/styling.js', 'utf8'), context);
-  vm.runInNewContext(fs.readFileSync('gui/static/js/index.js', 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync('gui/static/js/index.js', 'utf8') + '\nglobalThis.Chat = FayInterface;', context);
   const mixin = context.window.FayStylingMixin;
   const ui = Object.assign(options.data(), mixin.data(), mixin.methods, options.methods, {
     selectedUser: [1, 'User'], liveState: 1, base_url: '',
+    userList: [[1, 'User']], messages: [],
     fayService: {unlockAudio() {}, registerHumanOutput() {}},
     $set: (obj, key, value) => { obj[key] = value; },
+    $nextTick() {},
     $message: Object.fromEntries(['error','warning','info','success'].map(key => [key, value => notices.push(value)])),
     ensureDemoStoreSession: async () => 'token'
   });
@@ -134,6 +136,73 @@ test('natural outfit requests synchronize tool cards without requiring a budget 
     assert.equal(ui.chatStylePending, true, phrase);
     assert.equal(ui.newMessage, '', phrase);
   }
+});
+
+test('budget-only answer to the current styling question starts card polling', async () => {
+  const {ui, context} = fixture();
+  ui.newMessage = '200元';
+  ui.styleRequest = async () => ({revision: 'question', username: 'User', kind: 'styling', phase: 'collecting'});
+  let baseline;
+  ui.pollChatStylePresentation = revision => {baseline = revision;};
+  context.fetch = async () => ({ok:true, json:async () => ({result:'successful'})});
+  await ui.sendMessage();
+  assert.equal(ui.chatStylePending, true);
+  assert.equal(baseline, 'question');
+});
+
+test('completed text retries the exact card after an early fetch failure or delayed notification', async () => {
+  const {ui, context, timers} = fixture();
+  const old = {revision:'old', conversation_id:'question', username:'User', kind:'styling', phase:'collecting'};
+  const pants = {revision:'new', conversation_id:'answer', username:'User', kind:'styling', phase:'recommended', plan:{outfits:[{items:[{group:'bottoms'}]}]}};
+  const replies = [old, old, pants];
+  ui.styleRequest = async () => replies.shift();
+  ui.chatStylePending = true;
+  ui.pollChatStylePresentation('old');
+  const chat = new context.Chat('', '', ui);
+
+  // The initial notification fetch sees stale data, so no valid card is cached.
+  assert.equal(await ui.syncChatStylePresentation('new'), false);
+  chat.handleIncomingMessage({panelReply:{type:'fay', username:'User', id:'answer-id', conversation_id:'answer', content:'已推荐', is_end:true}});
+  assert.equal(ui.chatStylePending, false);
+  assert.equal(ui.messages[0].presentation, null);
+
+  // The final reply has a known conversation ID. A stale response must not
+  // attach to this reply or stop the polling retry.
+  await timers.at(-1)();
+  assert.equal(ui.messages[0].presentation, null);
+  await timers.at(-1)();
+  assert.equal(ui.messages[0].presentation, pants);
+  assert.equal(ui.chatStyleTimer, null);
+});
+
+test('a late polling response cannot attach or stop polling after a newer request starts', async () => {
+  const {ui, timers} = fixture();
+  let complete;
+  ui.styleRequest = () => new Promise(resolve => {complete = resolve;});
+  ui.chatStylePending = true;
+  ui.pollChatStylePresentation('old');
+  const pending = timers.at(-1)();
+  ui.pollChatStylePresentation('new');
+  const timer = ui.chatStyleTimer;
+  complete({revision:'answer', conversation_id:'previous', username:'User', kind:'styling'});
+  await pending;
+  assert.equal(ui.chatStylePresentations.previous, undefined);
+  assert.equal(ui.chatStyleTimer, timer);
+  assert.equal(ui.chatStylePending, true);
+});
+
+test('a duplicate final event for the preceding turn cannot cancel the current polling request', async () => {
+  const {ui} = fixture();
+  const previous = {revision:'previous', conversation_id:'previous-turn', username:'User', kind:'styling'};
+  ui.styleRequest = async () => previous;
+  await ui.syncChatStylePresentation(previous.revision);
+  ui.chatStylePending = true;
+  ui.pollChatStylePresentation(previous.revision);
+  const timer = ui.chatStyleTimer;
+
+  ui.finishChatStyleReply(previous.conversation_id);
+  assert.equal(ui.chatStyleTimer, timer);
+  assert.equal(ui.chatStylePending, true);
 });
 
 test('size chip submits an Agent question with user supplied values; try-on retains separate photo consent', async () => {
