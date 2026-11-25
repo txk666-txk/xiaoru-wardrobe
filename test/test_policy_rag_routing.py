@@ -3,6 +3,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from agent.controller import AgentController
+from agent.intent_router import SemanticIntentRouter
+from agent.tools.policy_tool import PolicyTool
 
 
 class PolicyRagRoutingTests(unittest.TestCase):
@@ -67,6 +69,61 @@ class PolicyRagRoutingTests(unittest.TestCase):
                 target.assert_called_once()
         self.registry.execute.assert_not_called()
         self.answerer.answer.assert_not_called()
+
+    def test_timed_refund_asks_for_receipt_date_before_order_number(self):
+        policy_tool = PolicyTool(retriever=Mock())
+        self.registry.execute.side_effect = lambda _tool, **arguments: policy_tool.execute(**arguments)
+        question = "我的衣服才买了三天，能退款吗"
+        response = self.controller.handle(question, user_id="test")
+
+        self.assertEqual(response.intent, "after_sales")
+        self.assertTrue(response.text.startswith("如果只是买了几天，还要看收货时间"))
+        self.assertIn("部分商品例外", response.text)
+        self.assertIn("需要保持完好", response.text)
+        self.assertIn("你是哪天收到这件衣服的？", response.text)
+        self.assertNotIn("请提供订单号", response.text)
+        self.assertFalse(response.requires_confirmation)
+        self.assertEqual(response.presentation["generation"]["mode"], "return_window_summary")
+        self.assertTrue(response.presentation["sources"])
+        self.registry.execute.assert_called_once_with("query_policy", query=question, concise=True,
+                                                     policy_id="seven_day_no_reason")
+        self.answerer.answer.assert_not_called()
+
+    def test_timed_refund_recognizes_receipt_date_on_both_semantic_consultation_routes(self):
+        policy_tool = PolicyTool(retriever=Mock())
+        self.registry.execute.side_effect = lambda _tool, **arguments: policy_tool.execute(**arguments)
+        classifier = Mock()
+        self.controller.intent_router = SemanticIntentRouter(classifier)
+        for intent in ("after_sales", "policy_query"):
+            with self.subTest(intent=intent):
+                classifier.decide.return_value = {"intent": intent, "confidence": 0.96, "operation": None}
+                response = self.controller.handle("我收到衣服三天了，还能退货吗？", demo_session_id="test")
+                self.assertEqual(response.intent, "after_sales")
+                self.assertTrue(response.text.startswith("你说的是收货时间"))
+                self.assertIn("七天内通常可以申请", response.text)
+                self.assertNotIn("哪天收到", response.text)
+                self.assertNotIn("退款已成功", response.text)
+        self.answerer.answer.assert_not_called()
+
+    def test_open_ended_after_sales_can_use_existing_policy_answerer(self):
+        self.result()
+        question = "售后能怎么办？"
+        response = self.controller.handle(question, user_id="test")
+
+        self.assertEqual(response.intent, "after_sales")
+        self.answerer.answer.assert_called_once_with(question, self.registry.execute.return_value)
+        self.assertEqual(response.presentation["generation"]["mode"], "extractive_fallback")
+
+    def test_timed_quality_issue_keeps_its_specific_policy(self):
+        policy_tool = PolicyTool(retriever=Mock())
+        self.registry.execute.side_effect = lambda _tool, **arguments: policy_tool.execute(**arguments)
+        question = "衣服才买了三天就破损了，能退款吗？"
+        response = self.controller.handle(question, user_id="test")
+
+        self.assertIn("质量问题可按退换修规则核实", response.text)
+        self.assertNotIn("还要看收货时间", response.text)
+        self.registry.execute.assert_called_once_with("query_policy", query=question, concise=True,
+                                                     policy_id="quality_after_sales")
 
 
 if __name__ == "__main__":

@@ -230,6 +230,9 @@ class CommerceService:
     def list_orders(self, session_id: str) -> list[dict[str, Any]]:
         return self.repository.list_orders(session_id)
 
+    def list_recent_orders(self, session_id: str) -> list[dict[str, Any]]:
+        return self.repository.list_recent_orders(session_id)
+
     def get_order(self, session_id: str, order_id: str) -> dict[str, Any]:
         return self.repository.get_order(session_id, order_id)
 

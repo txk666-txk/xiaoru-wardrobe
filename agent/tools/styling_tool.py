@@ -15,6 +15,12 @@ def describe_plan(plan):
         lines.append(plan['summary'])
         return '\n'.join(lines)
     first = plan['outfits'][0]
+    if options.get('only_pants'):
+        budget = '价格不限' if options.get('budget_unlimited') else f"预算 ¥{options['budget']:.0f}"
+        photo = '参考照片里的上衣，' if any(
+            item.get('category') in {'tops', 'outerwear'} for item in (plan.get('observation') or {}).get('garments', [])) else ''
+        return (f"{photo}给你挑了 {len(plan['outfits'])} 款裤子（{budget}）。"
+                "每款价格和试穿入口都在下方的商品卡片上。")
     labels = {'tops': '内搭', 'bottoms': '裤装', 'outerwear': '外套', 'one-pieces': '裙装',
               'shoes': '鞋', 'accessory': '配饰'}
     exclusions = [labels[group] + '避开' + '、'.join(color + '色' for color in colors)

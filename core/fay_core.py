@@ -641,10 +641,11 @@ class FeiFei:
                         text = agent_response.text
                         if stream_manager.new_instance().should_stop_generation(username, conversation_id=interact.data.get('conversation_id')):
                             return ''
-                        if agent_response.presentation:
+                        revision = agent_response.presentation.get('revision')
+                        if revision:
                             # Only a revision is broadcast; photos/cards stay behind the browser's cookie.
                             wsa_server.get_web_instance().add_cmd({'agentPresentation': {
-                                'username': username, 'revision': agent_response.presentation['revision']}, 'Username': username})
+                                'username': username, 'revision': revision}, 'Username': username})
                         util.log(
                             1,
                             f"电商 Agent Core 已处理: intent={agent_response.intent}, "

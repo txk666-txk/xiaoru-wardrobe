@@ -109,6 +109,47 @@ class DialogueTests(unittest.TestCase):
         refined = self.turn('太正式了，预算200')
         self.assertEqual(refined.presentation['plan']['observation']['mode'], 'garment')
 
+    def test_person_photo_pants_request_keeps_scope_after_budget_question(self):
+        job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
+        question = self.turn('这件上衣配什么裤子，冬季通勤', attachment_id=job['job_id'])
+        self.assertEqual([call['tool'] for call in question.tool_calls], ['inspect_outfit_photo'])
+        self.assertIn('这条裤子预算', question.text)
+
+        response = self.turn('预算120，直接推荐')
+        self.assertEqual([call['tool'] for call in response.tool_calls], ['recommend_outfit'])
+        plan = response.presentation['plan']
+        self.assertEqual(plan['observation']['mode'], 'person')
+        self.assertEqual(plan['observation']['garments'][0]['category'], 'tops')
+        self.assertIn('参考照片里的上衣', response.text)
+        self.assertTrue(plan['outfits'])
+        for outfit in plan['outfits']:
+            self.assertEqual([item['category'] for item in outfit['items']], ['裤装'])
+            self.assertEqual(outfit['total'], outfit['items'][0]['price'])
+            self.assertLessEqual(outfit['total'], 120)
+
+        full = self.turn('帮我搭一整套通勤装，预算400')
+        self.assertEqual({item['group'] for item in full.presentation['plan']['outfits'][0]['items']},
+                         {'tops', 'bottoms', 'outerwear'})
+
+    def test_consumed_person_photo_pants_request_stays_in_styling(self):
+        from agent.intent_router import SemanticIntentRouter
+
+        job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
+        first = self.turn('夏季通勤搭配，预算300', attachment_id=job['job_id'])
+        self.assertEqual({item['group'] for item in first.presentation['plan']['outfits'][0]['items']},
+                         {'tops', 'bottoms'})
+        classifier = Mock()
+        classifier.decide.return_value = {'intent': 'product_query', 'confidence': 0.98, 'operation': None}
+        self.controller.intent_router = SemanticIntentRouter(classifier)
+
+        response = self.turn('帮我推荐一条搭这件上衣的裤子')
+        classifier.decide.assert_called_once()
+        self.assertEqual(response.intent, 'styling')
+        self.assertEqual([call['tool'] for call in response.tool_calls], ['recommend_outfit'])
+        outfits = response.presentation['plan']['outfits']
+        self.assertTrue(outfits)
+        self.assertTrue(all([item['group'] for item in outfit['items']] == ['bottoms'] for outfit in outfits))
+
     def test_vision_failure_or_foreign_attachment_never_queries_products(self):
         job = self.service.create('alice', mode='person', stream=photo(), consent=True, defer=True)
         foreign = self.turn('通勤搭配，预算300', owner='bob', attachment_id=job['job_id'])
@@ -234,6 +275,19 @@ class FayBridgeTests(unittest.TestCase):
         instance._FeiFei__process_stream_output.assert_called_once_with(response.text, 'User', session_type='ecommerce_agent_styling', is_qa=False)
         messages = namespace['wsa_server'].get_web_instance.return_value.add_cmd.call_args_list
         self.assertTrue(any('agentPresentation' in call.args[0] for call in messages))
+
+        instance._FeiFei__process_stream_output.reset_mock()
+        web = namespace['wsa_server'].get_web_instance.return_value
+        web.add_cmd.reset_mock()
+        policy_response = AgentResponse(handled=True, text='七天无理由从收货时算起。', intent='after_sales',
+                                        presentation={'kind': 'policy', 'sources': [{'title': '政策依据'}]})
+        with patch('agent.fay_adapter.handle_text', return_value=policy_response):
+            result = instance._FeiFei__process_interact(Interact('text', 1,
+                {'user': 'User', 'msg': '才买三天能退吗', 'demo_session_id': 'alice', 'conversation_id': 'conv-one'}))
+        self.assertEqual(result, policy_response.text)
+        instance._FeiFei__process_stream_output.assert_called_once_with(
+            policy_response.text, 'User', session_type='ecommerce_agent_after_sales', is_qa=False)
+        self.assertFalse(any('agentPresentation' in call.args[0] for call in web.add_cmd.call_args_list))
 
         # An interrupted, slow image task must not speak under the new conversation ID.
         namespace['stream_manager'].new_instance.return_value.should_stop_generation.return_value = True

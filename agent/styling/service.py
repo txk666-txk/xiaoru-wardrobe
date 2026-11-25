@@ -88,19 +88,19 @@ class StylingService:
             self.update_conversation(owner)
             return self._turn_locks.setdefault(owner, threading.RLock())
 
-    def update_conversation(self, owner, **values):
+    def update_conversation(self, owner, *, initial_active=True, **values):
         with self._lock:
             self._cleanup()
             if owner not in self._conversations and len(self._conversations) >= 128:
                 raise StylingError('style_busy', '会话数量已达上限，请稍后再试', 429)
-            state = self._conversations.setdefault(owner, {'options': {}, 'waiting': [], 'active': True})
+            state = self._conversations.setdefault(owner, {'options': {}, 'waiting': [], 'active': initial_active})
             state.update(copy.deepcopy(values), expires_at=self.clock() + TTL)
             return copy.deepcopy(state)
 
-    def publish(self, owner, response):
+    def publish(self, owner, response, *, initial_active=True):
         presentation = {**copy.deepcopy(response.presentation), 'revision': secrets.token_hex(16),
                         'text': response.text, 'tool_calls': copy.deepcopy(response.tool_calls)}
-        self.update_conversation(owner, presentation=presentation)
+        self.update_conversation(owner, initial_active=initial_active, presentation=presentation)
         response.presentation = presentation
 
     def bind_voice(self, owner, username, enabled=True):

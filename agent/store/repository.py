@@ -731,6 +731,33 @@ class DemoCommerceRepository:
             ).fetchall()
             return [self._get_order(connection, session_id, row["order_id"]) for row in rows]
 
+    def list_recent_orders(self, session_id: str) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT orders.order_id, orders.status, orders.total_cents,
+                       orders.item_count, orders.created_at,
+                       (SELECT product_name FROM demo_order_items
+                        WHERE order_id=orders.order_id ORDER BY id LIMIT 1) AS first_item_name
+                FROM demo_orders AS orders
+                WHERE orders.session_id=?
+                ORDER BY orders.created_at DESC, orders.rowid DESC
+                LIMIT 5
+                """,
+                (session_id,),
+            ).fetchall()
+        return [
+            {
+                "order_id": row["order_id"],
+                "status_text": ORDER_STATUS_LABELS.get(row["status"], row["status"]),
+                "total": _money(row["total_cents"]),
+                "item_count": row["item_count"],
+                "created_at": row["created_at"],
+                "first_item_name": row["first_item_name"],
+            }
+            for row in rows
+        ]
+
     @staticmethod
     def _get_logistics(connection: sqlite3.Connection, order_id: str) -> list[dict[str, Any]]:
         rows = connection.execute(

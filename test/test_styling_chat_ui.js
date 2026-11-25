@@ -79,6 +79,31 @@ test('visual cards attach only to matching Fay conversation, including late-arri
   assert.equal(late.presentation, presentation);
 });
 
+test('order choices attach only to the matching chat and select the displayed order ID', async () => {
+  const {ui} = fixture();
+  const order = {order_id:'FX-20261125-1234ABCD', first_item_name:'宽松衬衫'};
+  const presentation = {revision:'order-revision', conversation_id:'order-chat', username:'User',
+    kind:'recent_orders', orders:[order]};
+  ui.styleRequest = async path => {
+    assert.equal(path, '/api/styling/conversation');
+    return presentation;
+  };
+  ui.messages = [{type:'fay', conversation_id:'older-chat', username:'User'},
+    {type:'fay', conversation_id:'order-chat', username:'Other'},
+    {type:'fay', conversation_id:'order-chat', username:'User'}];
+  await ui.syncChatStylePresentation('stale-revision');
+  assert.equal(ui.messages[2].presentation, undefined);
+  await ui.syncChatStylePresentation('order-revision');
+  assert.equal(ui.messages[0].presentation, undefined);
+  assert.equal(ui.messages[1].presentation, undefined);
+  assert.equal(ui.messages[2].presentation, presentation);
+  let prompt;
+  ui.sendCommercePrompt = text => {prompt = text;};
+  assert.match(fs.readFileSync('gui/templates/index.html', 'utf8'), /item.presentation.orders[^\n]+askOrder\(order\)/);
+  ui.askOrder(ui.messages[2].presentation.orders[0]);
+  assert.equal(prompt, '我的订单 FX-20261125-1234ABCD 现在是什么状态？');
+});
+
 test('a fast WebSocket reply before HTTP acknowledgement cannot re-enable a stale tool spinner', async () => {
   const {ui, context} = fixture();
   ui.newMessage = '这款商品 YZREF-ONE 身高170cm体重65kg，喜欢宽松';

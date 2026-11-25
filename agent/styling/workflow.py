@@ -251,6 +251,11 @@ class StylingWorkflow:
         if action == 'inspect_outfit_photo':
             args = {'attachment_id': request.attachment_id, 'demo_session_id': request.owner}
         elif action == 'recommend_outfit':
+            previous_total = previous[0]['total'] if previous else None
+            if state['options'].get('only_pants'):
+                items = [item for item in items if item['group'] == 'bottoms']
+                keep_ids = [pid for pid in keep_ids if any(item['product_id'] == pid for item in items)]
+                previous_total = items[0]['price'] if items else None
             changed = state['cheaper_groups'] | state['replace_groups']
             released = state['release_groups'] | changed
             keep_ids = [pid for pid in keep_ids if not any(
@@ -263,8 +268,8 @@ class StylingWorkflow:
             args = {'query': request.text, 'demo_session_id': request.owner, 'options': state['options'],
                     'observation': state['observation'], 'keep_product_ids': keep_ids, 'max_item_prices': caps,
                     'exclude_product_ids': [item['product_id'] for item in items if item['group'] in state['replace_groups']],
-                    'max_total_price': round(previous[0]['total'] - .01, 2)
-                        if previous and re.search(CHEAPER, request.text) and not state['cheaper_groups'] else None}
+                    'max_total_price': round(previous_total - .01, 2)
+                        if previous_total is not None and re.search(CHEAPER, request.text) and not state['cheaper_groups'] else None}
         else:
             # Never pass a model-supplied arbitrary tool name through the registry.
             raise ValueError('unsupported_styling_action')

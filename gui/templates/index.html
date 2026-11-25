@@ -326,7 +326,7 @@
               <div class="service-quick-actions">
                 <button class="service-tool-button" type="button" @click="sendCommercePrompt('帮我规划一套穿搭')" title="和数字人聊穿搭" aria-label="和数字人聊穿搭"><i class="el-icon-magic-stick" aria-hidden="true"></i></button>
                 <button class="service-tool-button" type="button" @click="sendCommercePrompt('请介绍一下目前有哪些商品')" title="选商品" aria-label="选商品"><i class="el-icon-shopping-bag-2" aria-hidden="true"></i></button>
-                <button class="service-tool-button" type="button" @click="sendCommercePrompt('我想查询订单，请提示我需要提供什么信息')" title="查订单" aria-label="查订单"><i class="el-icon-tickets" aria-hidden="true"></i></button>
+                <button class="service-tool-button" type="button" @click="sendCommercePrompt('帮我查一下我的订单')" title="查订单" aria-label="查订单"><i class="el-icon-tickets" aria-hidden="true"></i></button>
                 <button v-if="!shareSelectMode && messages.length > 0" type="button" class="share-entry-btn service-tool-button" @click="enterShareSelectMode" title="多选生成分享图" aria-label="多选生成分享图"><i class="el-icon-share" aria-hidden="true"></i></button>
               </div>
             </div>
@@ -370,8 +370,14 @@
 <div v-if="(parseThinkContent(item.content).thinkContent || item.thinkLoading) && item.thinkExpanded" class="think-content-inline">[[parseThinkContent(item.content).thinkContent]]</div>
                       <div class="message-text markdown-body" v-html="renderMarkdown(parseThinkContent(item.content).mainContent)"></div>
                       <div v-if="item.presentation" class="chat-style-advice">
+                        <div v-if="item.presentation.kind === 'recent_orders'" class="chat-style-suggestions">
+                          <button v-for="order in item.presentation.orders" :key="order.order_id" type="button" @click.stop="askOrder(order)">
+                            [[order.first_item_name || displayOrderNo(order.order_id)]]<span v-if="order.item_count > 1">等 [[order.item_count]] 件</span> · [[order.status_text]] · ¥[[formatMoney(order.total)]] · [[formatStoreDateTime(order.created_at)]]
+                          </button>
+                          <button type="button" @click.stop="switchStoreTab('orders'); loadStorefront(true)">查看全部订单</button>
+                        </div>
                         <div v-if="item.presentation.planner_notice" class="chat-style-planner-notice" role="status">[[item.presentation.planner_notice]]</div>
-                        <div v-if="item.presentation.tool_calls && item.presentation.tool_calls.length" class="chat-style-tool-evidence"><i class="el-icon-check" aria-hidden="true"></i>[[item.presentation.tool_calls.some(call => call.tool === 'inspect_outfit_photo') ? '本地看图' : item.presentation.decision_mode === 'model' ? '模型决策' : '条件筛选']]<span v-if="item.presentation.plan && item.presentation.plan.outfits.length"> → 商品检索 · 条件核对</span></div>
+                        <div v-if="item.presentation.kind !== 'recent_orders' && item.presentation.tool_calls && item.presentation.tool_calls.length" class="chat-style-tool-evidence"><i class="el-icon-check" aria-hidden="true"></i>[[item.presentation.tool_calls.some(call => call.tool === 'inspect_outfit_photo') ? '本地看图' : item.presentation.decision_mode === 'model' ? '模型决策' : '条件筛选']]<span v-if="item.presentation.plan && item.presentation.plan.outfits.length"> → 商品检索 · 条件核对</span></div>
                         <div v-if="item.presentation.plan" class="chat-style-outfits">
                           <details v-for="(outfit, oi) in item.presentation.plan.outfits" :key="oi" :open="oi === 0" class="chat-style-look">
                             <summary><strong>[[outfit.title]]</strong><span>¥[[outfit.total.toFixed(2)]]</span></summary>

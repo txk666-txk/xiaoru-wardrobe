@@ -34,6 +34,10 @@ class AgentController:
         r"^\s*确认处理\s+((?:(?:DEMO|FX)-\d{8}-[A-Fa-f0-9]{8})|(?:[A-Za-z]\d{5,}))\s*[。.!！]?$",
         re.IGNORECASE,
     )
+    _order_list_pattern = re.compile(
+        r"(?:请)?(?:帮我|给我)?(?:查看|查询|查|看)(?:一下|下)?"
+        r"(?:我(?:自己)?的)?(?:近期|最近|历史|全部|所有)?(?:订单(?:列表|记录)?|下单记录)"
+    )
 
     def __init__(
         self,
@@ -124,8 +128,7 @@ class AgentController:
         ) else None
 
     def _resolve_order_id(self, user_id: str, route: RouteResult) -> str | None:
-        # Stage 1 尚无可靠的服务端客户会话 ID。为避免匿名顾客串单，订单/物流查询
-        # 每次都要求当前请求显式提供订单号，不复用进程级最近订单上下文。
+        # 订单详情和物流查指定订单，只接受本轮明确提供的编号。
         return route.entities.get("order_id")
 
     def _finalize(
@@ -159,7 +162,7 @@ class AgentController:
     def _handle_styling(self, text, user_id, owner, attachment_id=None, conversation_id=None,
                         model_only_followup=False, initial_updates=None):
         from .styling.service import get_styling_service
-        from .styling.engine import parse_feedback, aesthetic_advice, normalize_styling_text
+        from .styling.engine import parse_feedback, aesthetic_advice, normalize_styling_text, requests_pants_only
         from .styling.vision import StylingError
         service = get_styling_service()
         text = normalize_styling_text(text)
@@ -214,6 +217,8 @@ class AgentController:
                 # A season correction replaces the old estimated temperature unless actual degrees are supplied.
                 if 'season' in parse_feedback(text) and not re.search(r'度|℃', text):
                     options.pop('temperature', None)
+                if requests_pants_only(text, has_photo=bool(attachment_id or observation)):
+                    options.update(only_pants=True, bottoms_kind='pants')
                 options = clean_preferences(options)
             except StylingError as exc:
                 response = self._finalize(route=route, text=str(exc), tool_calls=calls, presentation={'kind': 'styling', 'suggestions': ['预算300']})
@@ -262,8 +267,9 @@ class AgentController:
                     tool_calls=calls, presentation={'kind': 'styling', 'aesthetic_advice': advice,
                                                   'suggestions': ['用已有衣服帮我搭配', '给我通勤穿搭，预算300']})
             elif missing:
-                question = ('你主要想在什么场合穿，整套预算大约多少？比如“通勤，300元”。' if len(missing) == 2 else
-                            '整套预算大约多少？告诉我一个金额就好。' if missing == ['budget'] else '主要是通勤、日常还是约会穿？')
+                budget_subject = '这条裤子' if options.get('only_pants') else '整套'
+                question = (f'你主要想在什么场合穿，{budget_subject}预算大约多少？比如“通勤，300元”。' if len(missing) == 2 else
+                            f'{budget_subject}预算大约多少？告诉我一个金额就好。' if missing == ['budget'] else '主要是通勤、日常还是约会穿？')
                 suggestions = ['通勤，预算300', '日常，预算200', '直接推荐'] if len(missing) == 2 else ['300元', '200元', '直接推荐'] if missing == ['budget'] else ['通勤', '日常', '约会']
                 service.update_conversation(owner, options=options, observation=observation, waiting=missing, active=True, collected=True)
                 answer = (advice[0] + '\n' if attachment_id and advice else '我来帮你一起挑。' if not state else '') + question
@@ -342,6 +348,7 @@ class AgentController:
         route: RouteResult,
         demo_session_id: str | None,
         memory_user_id: str,
+        conversation_id: str | None = None,
     ) -> AgentResponse:
         order_id = self._resolve_order_id(user_id, route)
         args = {
@@ -349,7 +356,27 @@ class AgentController:
             "user_id": user_id,
             "demo_session_id": demo_session_id,
         }
+        if not order_id and demo_session_id:
+            args["list_recent"] = True
         result = self.registry.execute("query_order", **args)
+        recent_orders = (result.get("data") or {}).get("recent_orders")
+        if result.get("ok") and recent_orders is not None and demo_session_id:
+            response = self._finalize(
+                route=route,
+                text=result["message"],
+                tool_calls=[self._tool_call("query_order", args, result)],
+                presentation={
+                    "kind": "recent_orders",
+                    "orders": recent_orders,
+                    "conversation_id": conversation_id,
+                    "username": user_id,
+                } if recent_orders else None,
+                audit=["Action: query_order", "Observation: 已查询当前商城会话的近期订单"],
+            )
+            if recent_orders:
+                from .styling.service import get_styling_service
+                get_styling_service().publish(demo_session_id, response, initial_active=False)
+            return response
         if result.get("ok") and order_id:
             self.memory.remember(memory_user_id, route.intent, order_id=order_id)
         observation = (
@@ -445,6 +472,21 @@ class AgentController:
                    "政策回答: " + generation["mode"]],
         )
 
+    @staticmethod
+    def _return_window_reference(text: str) -> str | None:
+        eligibility_question = (
+            r"(?:能不能|还能|能否|能|可不可以|可以|可否)\s*(?:申请\s*)?(?:无理由\s*)?(?:退款|退货|退[吗么])"
+        )
+        if not re.search(eligibility_question, text):
+            return None
+        elapsed = (r"(?:货|商品|衣服)?\s*(?:后|了|至今)?\s*(?:才|刚|已经)?"
+                   r"\s*(?:\d{1,3}|[零〇一二两三四五六七八九十百]+)\s*天")
+        if re.search(r"(?:收到|收货|签收)" + elapsed, text):
+            return "receipt"
+        if re.search(r"(?:买|购买|下单|付款|支付)" + elapsed, text):
+            return "purchase"
+        return None
+
     def _handle_after_sales(
         self,
         text: str,
@@ -484,12 +526,13 @@ class AgentController:
             and needs_large_order_review(order_data)
         )
         quality_issue = any(word in text for word in ("坏了", "破损", "损坏", "故障", "瑕疵", "质量问题", "错发", "漏发"))
+        window_reference = self._return_window_reference(text)
         policy_args = {"query": text, "concise": True}
         if quality_issue:
             policy_args["policy_id"] = "quality_after_sales"
         elif large_return:
             policy_args["policy_id"] = "large_order_return_review"
-        elif "退货" in text or "无理由" in text:
+        elif window_reference or "退货" in text or "无理由" in text:
             policy_args["policy_id"] = "seven_day_no_reason"
         policy_result = self.registry.execute("query_policy", **policy_args)
         calls.append(self._tool_call("query_policy", policy_args, policy_result))
@@ -500,23 +543,53 @@ class AgentController:
             else f"Observation: 售后政策查询失败（{policy_result.get('error') or 'unknown_error'}）"
         )
 
+        policy_data = policy_result.get("data") or {}
+        has_return_window = policy_result.get("ok") and any(
+            policy.get("policy_id") == "seven_day_no_reason" for policy in policy_data.get("policies", [])
+        )
+        return_window_reply = window_reference and has_return_window
+        policy_answer = policy_result["message"]
+        generation = None
+        if return_window_reply:
+            policy_answer = (
+                "如果只是买了几天，还要看收货时间，七天无理由从收到商品时算起。"
+                if window_reference == "purchase" else "你说的是收货时间，可以用它核对退货期限。"
+            ) + "网购商品在收货后七天内通常可以申请无理由退货，部分商品例外，退回的商品也需要保持完好。"
+            generation = {"mode": "return_window_summary"}
+        elif not order_id and "policy_id" not in policy_args:
+            # The answerer sends only the question and retrieved policy evidence.
+            policy_answer, generation = self.policy_answerer.answer(text, policy_result)
+        if generation is not None:
+            audit.append("政策回答: " + generation["mode"])
+
         parts = []
+        if return_window_reply:
+            parts.append(policy_answer)
         if order_result and order_result.get("ok"):
             parts.append(f"已核对订单 {order_id}（演示）。")
         elif order_result:
             parts.append(order_result["message"])
-        parts.append(policy_result["message"])
+        if not return_window_reply:
+            parts.append(policy_answer)
         if large_return and quality_issue:
             parts.append("这单也达到演示大单阈值，退货须人工复核；不能因此拒绝质量售后。")
-        if not order_id:
+        if return_window_reply:
+            parts.append("你是哪天收到这件衣服的？如果还没收到，也可以直接告诉我。"
+                         if window_reference == "purchase" else "你可以在订单页查看这件衣服的退货入口和售后条件。")
+        elif not order_id:
             parts.append("如需核对具体售后，请提供订单号；不要发送验证码或支付密码。")
 
+        presentation = None
+        if generation is not None:
+            presentation = {"kind": "policy", "sources": policy_data.get("sources", []),
+                            "retrieval": policy_data.get("retrieval", {}), "generation": generation}
         return self._finalize(
             route=route,
             text="\n".join(parts),
             tool_calls=calls,
-            evidence={"order": order_data, "policy": policy_result.get("data")},
+            evidence={"order": order_data, "policy": policy_data},
             audit=audit,
+            presentation=presentation,
         )
 
     def _handle_high_risk_action(
@@ -645,12 +718,20 @@ class AgentController:
     ) -> AgentResponse:
         route = self.router.route(text)
         model_only_followup = False
+        from .styling.engine import requests_pants_only
         from .styling.service import get_styling_service
         styling_owner = demo_session_id or f'voice:{user_id}'
         style_service = get_styling_service() if attachment_id or route.intent in {'styling', 'general', 'product_query', 'size_recommendation'} else None
         state = style_service.conversation(styling_owner) if style_service else None
+        photo_pants_request = bool(
+            state and state.get('active') and state.get('observation')
+            and route.intent in {'styling', 'general', 'product_query'}
+            and not (product_id or route.entities.get('product_id'))
+            and requests_pants_only(text, has_photo=True))
         if attachment_id:
             route = RouteResult('styling', 'react', 0.99, route.entities)
+        elif photo_pants_request:
+            route = RouteResult('styling', 'plan_and_solve', 0.96, route.entities)
         elif state and state.get('active') and route.intent in {'general', 'product_query', 'size_recommendation'} and not (product_id or route.entities.get('product_id')):
             from .styling.engine import parse_feedback
             try:
@@ -705,8 +786,14 @@ class AgentController:
 
         # Model routing receives the current task and this session's dialogue.
         # Server-bound attachments and explicit confirmations keep their checks.
+        order_id = route.entities.get("order_id")
+        request_text = (text or "").strip().rstrip("。！？.!?").strip()
+        explicit_order_query = demo_session_id and route.intent == "order_query" and (
+            self._order_list_pattern.fullmatch(request_text)
+            or order_id and request_text.upper() == f"我的订单 {order_id} 现在是什么状态"
+        )
         semantic_route = None
-        if self.intent_router is not None and not attachment_id and not protected_confirmation:
+        if self.intent_router is not None and not (attachment_id or protected_confirmation or explicit_order_query):
             from .styling.planner import CONTEXT_FIELDS
             from .rag.answer import safe_question
             style_service = style_service or get_styling_service()
@@ -729,8 +816,10 @@ class AgentController:
                 "photo_pending": False,
             }
             semantic_route = self.intent_router.route(text, route, context=context)
-            if (semantic_route is not None and semantic_route.intent == "product_query"
-                    and route.intent == "styling" and Router.requests_complete_outfit(text)):
+            if semantic_route is not None and (
+                    (photo_pants_request and semantic_route.intent in {'product_query', 'general'})
+                    or (semantic_route.intent == 'product_query' and route.intent == 'styling'
+                        and Router.requests_complete_outfit(text))):
                 semantic_route = None
             if semantic_route is not None:
                 route = semantic_route
@@ -752,6 +841,8 @@ class AgentController:
                 entities["product_id"] = verified_id
                 route = RouteResult(route.intent, route.strategy, route.confidence, entities)
         route = self._reuse_recent_product(text, memory_user_id, route)
+        if route.intent == "policy_query" and self._return_window_reference(text):
+            route = RouteResult("after_sales", "plan_and_solve", route.confidence, route.entities)
         self._remember_route(memory_user_id, route)
 
         if route.intent == "styling":
@@ -762,7 +853,7 @@ class AgentController:
         if route.intent == "size_recommendation":
             return self._handle_size_recommendation(text, route)
         if route.intent == "order_query":
-            return self._handle_order(user_id, route, demo_session_id, memory_user_id)
+            return self._handle_order(user_id, route, demo_session_id, memory_user_id, conversation_id)
         if route.intent == "logistics_query":
             return self._handle_logistics(user_id, route, demo_session_id, memory_user_id)
         if route.intent == "policy_query":

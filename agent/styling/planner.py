@@ -17,7 +17,7 @@ from .preferences import clean_preferences
 GROUPS = {"tops", "bottoms", "outerwear", "one-pieces"}
 FIELDS = {"scene", "budget", "budget_unlimited", "season", "fit", "style", "gender", "colors",
           "excluded_colors", "excluded_colors_by_group"}
-CONTEXT_FIELDS = FIELDS | {"required_colors_by_group", "bottoms_kind"}
+CONTEXT_FIELDS = FIELDS | {"required_colors_by_group", "bottoms_kind", "only_pants"}
 ACTIONS = {"ask", "inspect_outfit_photo", "recommend_outfit", "opinion", "pause", "handoff"}
 VALIDATION_CODES = {
     'oversized_decision', 'invalid_json', 'invalid_action', 'invalid_updates',

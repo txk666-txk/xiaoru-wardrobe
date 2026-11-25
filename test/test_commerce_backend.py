@@ -968,6 +968,87 @@ class CommerceApiTests(unittest.TestCase):
         self.assertIn("logistics", payload)
         self.assertFalse(payload["store"]["ownership_verified"])
 
+    def test_chat_lists_five_recent_orders_privately_and_can_open_selected_order(self):
+        from agent.intent_router import SemanticIntentRouter
+        from agent.styling.service import StylingService
+        from gui.commerce_api import COOKIE_NAME, _session_id
+        from gui.styling_api import create_styling_blueprint
+
+        owner_token = "owner-browser-token-" + "a" * 32
+        other_token = "other-browser-token-" + "b" * 32
+        owner = _session_id(owner_token)
+        other = _session_id(other_token)
+
+        def order_for(session, key):
+            self.fixture.service.set_cart_item(session, "YZREF-BAG456", 1)
+            preview = self.fixture.service.preview_order(session)
+            return self.fixture.service.create_order(session, preview["confirmation_token"], key)
+
+        owned_order_ids = []
+        for index in range(6):
+            order = order_for(owner, f"owner-order-{index}")
+            owned_order_ids.append(order["order_id"].replace("DEMO-", "FX-", 1))
+            if index < 5:
+                self.fixture.service.cancel_order(owner, order["order_id"])
+        foreign_order = order_for(other, "other-order")
+
+        styling = StylingService(root=self.fixture.root / "styling")
+        self.addCleanup(styling.close)
+        self.app.register_blueprint(create_styling_blueprint())
+        classifier = Mock()
+        classifier.decide.return_value = {"intent": "general", "confidence": 0.99,
+                                          "operation": None, "reply": "普通聊天"}
+        controller = AgentController(intent_router=SemanticIntentRouter(classifier))
+        with patch("agent.styling.service.get_styling_service", return_value=styling), patch(
+            "gui.styling_api.get_styling_service", return_value=styling
+        ):
+            response = controller.handle("帮我查一下我的订单", user_id="buyer",
+                                         demo_session_id=owner, conversation_id="chat-1")
+            self.assertIn("点选一笔", response.text)
+            self.assertNotIn("公开托特包", response.text)
+            self.assertEqual(response.presentation["conversation_id"], "chat-1")
+            self.assertFalse(styling.conversation(owner)["active"])
+
+            self.client.set_cookie(COOKIE_NAME, owner_token)
+            view = self.client.get("/api/styling/conversation")
+            self.assertEqual(view.status_code, 200)
+            self.assertEqual(view.headers["Cache-Control"], "no-store")
+            orders = view.get_json()["data"]["orders"]
+            self.assertEqual([order["order_id"] for order in orders], list(reversed(owned_order_ids[-5:])))
+            self.assertEqual(set(orders[0]), {"order_id", "first_item_name", "item_count",
+                                              "status_text", "created_at", "total"})
+            self.assertEqual(orders[0]["first_item_name"], "公开托特包")
+
+            another_browser = self.app.test_client()
+            another_browser.set_cookie(COOKIE_NAME, other_token)
+            self.assertIsNone(another_browser.get("/api/styling/conversation").get_json()["data"])
+
+            styling.update_conversation(owner, active=True, waiting=["budget"])
+            repeated = controller.handle("查看我的订单", user_id="buyer", demo_session_id=owner,
+                                         conversation_id="chat-2")
+            self.assertEqual(repeated.intent, "order_query")
+            self.assertEqual(styling.conversation(owner)["waiting"], ["budget"])
+
+            selected = controller.handle(f"我的订单 {orders[0]['order_id']} 现在是什么状态？",
+                                         user_id="buyer", demo_session_id=owner)
+            self.assertIn("待发货", selected.text)
+            self.assertIn("公开托特包", selected.text)
+            classifier.decide.assert_not_called()
+            classifier.decide.return_value = {"intent": "order_query", "confidence": 0.99, "operation": None}
+            foreign = controller.handle(f"查询订单 {foreign_order['order_id']}", user_id="buyer",
+                                        demo_session_id=owner)
+            self.assertEqual(foreign.tool_calls[0]["error"], "order_not_found")
+
+    def test_chat_order_request_with_empty_session_or_without_browser_identity(self):
+        controller = AgentController()
+        question = "帮我查一下我的订单"
+        empty = controller.handle(question, demo_session_id="empty-browser")
+        self.assertIn("还没有订单", empty.text)
+        self.assertEqual(empty.presentation, {})
+        no_browser = controller.handle(question)
+        self.assertIn("请提供订单号", no_browser.text)
+        self.assertEqual(no_browser.tool_calls[0]["error"], "missing_order_id")
+
     def test_cart_write_requires_csrf(self):
         self._session()
         response = self.client.post(

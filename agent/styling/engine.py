@@ -17,6 +17,23 @@ NEUTRALS = {"黑", "白", "灰", "米", "棕"}
 KEYWORDS = {"简约": ("纯色", "简约", "基础", "直筒"), "休闲": ("休闲", "宽松", "牛仔", "卫衣"),
             "通勤": ("衬衫", "西装", "直筒", "针织"), "运动": ("运动", "卫裤", "速干"),
             "复古": ("复古", "做旧", "皮衣", "格纹"), "街头": ("街头", "美式", "印花", "工装")}
+TROUSER_WORDS = r"裤子|裤装|长裤|短裤|牛仔裤|西裤|阔腿裤|工装裤|休闲裤|运动裤|卫裤|(?<!裙)裤(?!袜)"
+
+
+def requests_pants_only(text, *, has_photo=False):
+    """A purchase target, separate from the type of bottoms in a full outfit."""
+    gap = r"(?:(?!不要|不想|不用|别选|只要|保留|留着)[^，。！？；,!?;]){0,18}"
+    if re.search(rf"(?<!不)(?:只(?:想|需|要|用|给)?|仅(?:需|要)?)\s*{gap}(?:{TROUSER_WORDS})", text):
+        return True
+    if not has_photo or requests_full_outfit(text):
+        return False
+    if re.search(r"(?:上衣|外套|内搭|衬衫)\s*(?:和|跟|加|以及|、|＋|\+)", text):
+        return False
+    return bool(re.search(rf"(?<![不别])(?:推荐|返回|挑|找|选|配){gap}(?:{TROUSER_WORDS})", text))
+
+
+def requests_full_outfit(text):
+    return bool(re.search(r"(?:推荐|搭配?|配|换|找|看看|来)\s*(?:一整套|整套|[一两1-2][套身])", text))
 
 
 def group_of(product):
@@ -160,7 +177,7 @@ def parse_feedback(text, current=None):
     if required or "required_colors_by_group" in result:
         result["required_colors_by_group"] = required
     bottom_mentions = []
-    for kind, words in (("pants", r"裤子|裤装|长裤|短裤|牛仔裤|西裤|阔腿裤|工装裤|休闲裤|运动裤|卫裤|(?<!裙)裤"),
+    for kind, words in (("pants", TROUSER_WORDS),
                         ("skirt", r"半身裙|短裙|长裙|裙子")):
         for found in re.finditer(words, text):
             # "不要裤子" refuses a category, whereas "不要黑色裤子" still
@@ -177,6 +194,10 @@ def parse_feedback(text, current=None):
         result.pop("bottoms_kind", None)
         if "required_colors_by_group" in result:
             result["required_colors_by_group"].pop("bottoms", None)
+    if requests_pants_only(text):
+        result.update(only_pants=True, bottoms_kind="pants")
+    elif requests_full_outfit(text) or result.get("bottoms_kind") != "pants":
+        result.pop("only_pants", None)
     excluded, liked = list(result.get("excluded_colors", [])), list(result.get("colors", []))
     for color in COLORS:
         if any(word + color in global_text for word in ("不要", "不喜欢", "避开", "排除")):
@@ -297,7 +318,14 @@ class StylingEngine:
         if not keep_ids.issubset(by_id) or not exclude_ids.issubset(by_id):
             raise StylingError("invalid_product", "所选商品不在当前目录，请刷新后重试")
         observed = (observation or {}).get("garments", [])
+        only_pants = options.get("only_pants", False)
+        reference_items = observed
+        if only_pants:
+            reference_items = [item for item in observed if item.get("category") in {"tops", "outerwear"}]
+            keep_ids = {item for item in keep_ids if group_of(by_id[item]) == "bottoms"}
         owned = observed if (observation or {}).get("mode") == "garment" else []
+        if only_pants and owned:
+            owned = reference_items
         def excluded_for(group):
             return set(options.get("excluded_colors", [])) | set(
                 options.get("excluded_colors_by_group", {}).get(group, []))
@@ -333,7 +361,7 @@ class StylingEngine:
         owned = retained_owned
         # Owned items replace that category rather than recommending a duplicate purchase.
         owned_groups = {item["category"] for item in owned if item["category"] in GROUPS.values()}
-        anchor_items = owned if (observation or {}).get("mode") == "garment" else observed
+        anchor_items = owned if (observation or {}).get("mode") == "garment" else reference_items
         anchor_colors = {item.get("color") for item in anchor_items if item.get("color") in COLORS}
         groups = ["tops", "bottoms"]
         if "one-pieces" in owned_groups:
@@ -345,6 +373,8 @@ class StylingEngine:
         if options.get("bottoms_kind"):
             requested_groups.add("bottoms")
         groups.extend(group for group in LABELS if group in requested_groups and group not in groups)
+        if only_pants:
+            groups = ["bottoms"]
         groups = [group for group in groups if group not in owned_groups]
         keep_groups = {group_of(by_id[item]) for item in keep_ids}
         if len(keep_groups) != len(keep_ids):
@@ -404,7 +434,7 @@ class StylingEngine:
             raise StylingError("unavailable_selection", "保留商品与预算偏好或公开库存冲突，请取消保留或调整条件")
         kept = [by_id[item] for item in sorted(keep_ids)]
         group_plans = [groups]
-        if (options["gender"] == "女款" and not owned_groups and not keep_groups
+        if (not only_pants and options["gender"] == "女款" and not owned_groups and not keep_groups
                 and not requested_groups & {"tops", "bottoms"}):
             group_plans.append(["one-pieces"] + (["outerwear"] if options.get("temperature", 25) < 18 else []))
         pools = {}
@@ -443,13 +473,16 @@ class StylingEngine:
             reason = f"围绕{options['scene']}场景，优先筛选标题中与{options['style']}相关的款式，新增商品参考合计 ¥{total:.2f}。"
             if owned:
                 reason = "保留照片中符合本次要求的已有衣服，只补充其余品类。" + reason
+            if only_pants and reference_items and not owned:
+                reason = "参考照片中的上衣配色。" + reason
             reason = "".join(constraint_notes) + reason
             palette = set().union(*(set(card["colors"]) for card in cards))
             if palette:
                 reason += "配色建议：" + "、".join(c + "色" for c in COLORS if c in palette) + "；可用鞋包呼应主色。颜色按目录资料初筛，请结合商品图片确认。"
             if options.get('body_type'):
                 reason += '版型按你自述的体型偏好筛选，实际效果需结合服装尺寸和试穿确认。'
-            outfits.append({"title": "推荐搭配" if not outfits else "另一种选择", "items": cards,
+            title = ("推荐裤装" if only_pants else "推荐搭配") if not outfits else "另一种选择"
+            outfits.append({"title": title, "items": cards,
                             "total": total, "reason": reason, "owned_items": owned})
             if len(outfits) == 2:
                 break
@@ -464,6 +497,9 @@ class StylingEngine:
                        "当前目录未找到同时符合预算与偏好的搭配。可以调整配色或款式条件，也可以先穿已有衣服；不会推荐超预算的方案。")
         elif len(outfits) == 1:
             summary = "当前条件下找到一套搭配，可以调整预算或风格再看看其他选择。"
+        if only_pants:
+            summary = (f"找到 {len(outfits)} 款符合当前条件的裤子。" if outfits else
+                       "当前目录未找到符合颜色、款式和预算条件的裤子。")
         summary = "".join(constraint_notes) + summary
         return {"options": options, "outfits": outfits, "summary": summary,
                 "constraint_notes": constraint_notes,

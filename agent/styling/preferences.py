@@ -44,6 +44,11 @@ def clean_preferences(payload):
         if not isinstance(payload["bottoms_kind"], str) or payload["bottoms_kind"] not in {"pants", "skirt"}:
             raise StylingError("invalid_preferences", "请提供有效的裤装或半身裙类型")
         result["bottoms_kind"] = payload["bottoms_kind"]
+    if "only_pants" in payload:
+        if not isinstance(payload["only_pants"], bool):
+            raise StylingError("invalid_preferences", "裤装推荐范围无效")
+        if payload["only_pants"]:
+            result.update(only_pants=True, bottoms_kind="pants")
     if "budget_unlimited" in payload:
         if not isinstance(payload["budget_unlimited"], bool):
             raise StylingError("invalid_preferences", "预算不限必须为布尔值")

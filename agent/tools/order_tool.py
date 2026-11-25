@@ -8,7 +8,7 @@ from .common import load_json, tool_result
 
 class OrderTool:
     name = "query_order"
-    description = "按订单号查询沙盒订单状态、商品、金额和配送信息"
+    description = "查询当前商城会话的近期订单，或按订单号查询订单详情"
 
     def __init__(self) -> None:
         payload = load_json("orders.json")
@@ -31,9 +31,19 @@ class OrderTool:
         order_id: str | None = None,
         user_id: str = "User",
         demo_session_id: str | None = None,
+        list_recent: bool = False,
         **_: object,
     ) -> dict:
         if not order_id:
+            if list_recent and demo_session_id:
+                orders = get_commerce_service().list_recent_orders(demo_session_id)
+                for order in orders:
+                    order["order_id"] = self._display_order_id(order["order_id"])
+                message = (
+                    "这是当前商城会话的近期订单，点选一笔就能看详情。"
+                    if orders else "当前商城会话还没有订单。"
+                )
+                return tool_result(ok=True, message=message, data={"recent_orders": orders})
             return tool_result(
                 ok=False,
                 error="missing_order_id",
